@@ -1,0 +1,21 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="bulk_image_downloader.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="DownloadDir" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Users\sanmadjack.FORTAWESOME\Desktop\TEST</Value>
+    </Setting>
+    <Setting Name="Downloadables" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="MaxConcurrentDownloads" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">1</Value>
+    </Setting>
+    <Setting Name="DetectAdditionalPages" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="LastDownloadDir" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:\Users\sanmadjack.FORTAWESOME\Desktop\TEST</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
