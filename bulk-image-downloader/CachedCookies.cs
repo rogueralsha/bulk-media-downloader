@@ -21,11 +21,15 @@ namespace bulk_image_downloader
         {
             get
             {
+                if (Age > cookieLife)
+                    return true;
                 return false;
             }
         }
 
         private List<Cookie> cookies = new List<Cookie>();
+
+        private TimeSpan cookieLife = new TimeSpan(1, 0, 0);
 
         public CachedCookies()
         {

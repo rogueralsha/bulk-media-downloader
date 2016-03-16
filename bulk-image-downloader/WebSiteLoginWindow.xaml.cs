@@ -41,7 +41,8 @@ namespace bulk_image_downloader
             get
             {
                 ICookieManager cookie_managed = Cef.GetGlobalCookieManager();
-                cookie_managed.VisitAllCookies(_cookies);
+                cookie_managed.VisitUrlCookies(login_url, false, _cookies);
+                //cookie_managed.VisitAllCookies(_cookies);
                 System.Threading.Thread.Sleep(1000); //Gotta give the cookies time to populate
                 return _cookies;
             }

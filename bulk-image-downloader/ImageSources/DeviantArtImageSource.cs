@@ -27,12 +27,41 @@ namespace bulk_image_downloader.ImageSources {
 
 
         private string address_root;
+        private string album_name;
+
+        private static CachedCookies cached_cookies = null;
+        public override CachedCookies StarterCookies
+        {
+            get
+            {
+                return cached_cookies;
+            }
+
+            set
+            {
+                cached_cookies = value;
+            }
+        }
+
+        public override bool RequiresLogin
+        {
+            get
+            {
+                if (cached_cookies != null && !cached_cookies.Expired)
+                {
+                    return false;
+                }
+                return true;
+            }
+        }
+
 
         public DeviantArtImageSource(Uri url)
             : base(url) {
 
+            this.LoginURL = @"http://www.deviantart.com/";
             if (!root_name.IsMatch(url.ToString())) {
-                throw new Exception("Shimmie URL not understood");
+                throw new Exception("DeviantArt URL not understood");
             }
             MatchCollection address_matches = root_name.Matches(url.ToString());
             address_root = address_matches[0].Groups[1].Value;
