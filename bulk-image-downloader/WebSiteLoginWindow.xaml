@@ -6,8 +6,8 @@
         xmlns:local="clr-namespace:bulk_image_downloader"
                 xmlns:cefSharp="clr-namespace:CefSharp.Wpf;assembly=CefSharp.Wpf"
         mc:Ignorable="d"
-        Title="WebSiteLoginWindow" Height="300" Width="300" WindowStartupLocation="CenterScreen" >
+        Title="WebSiteLoginWindow" Height="600" Width="700" WindowStartupLocation="CenterScreen" >
     <Grid>
-        <cefSharp:ChromiumWebBrowser Grid.Row="0" Name="webBrowser" />
+        <cefSharp:ChromiumWebBrowser Grid.Row="0" Name="webBrowser" Grid.ColumnSpan="2" />
     </Grid>
 </Window>

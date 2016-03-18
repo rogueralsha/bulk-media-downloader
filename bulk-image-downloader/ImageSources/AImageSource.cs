@@ -7,26 +7,28 @@ using System.Net;
 using System.IO;
 using System.ComponentModel;
 using System.Threading;
+using CefSharp;
+using CefSharp.OffScreen;
 
-namespace bulk_image_downloader.ImageSources {
-    public abstract class AImageSource : INotifyPropertyChanged {
+namespace bulk_image_downloader.ImageSources
+{
+    public abstract class AImageSource : INotifyPropertyChanged
+    {
         protected Uri url;
 
         public BackgroundWorker worker;
 
         protected bool pause_work = false;
-        protected string lastCookie = "";
-        protected string lastSetCookie = "";
 
         public virtual bool RequiresLogin { get; }
         public string LoginURL { get; protected set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public virtual CachedCookies StarterCookies {
-            get;  set; }
+        protected static SuperWebClient TheWebClient = new SuperWebClient();
 
-        public AImageSource(Uri url) {
+        public AImageSource(Uri url)
+        {
             this.RequiresLogin = false;
             this.url = url;
             worker = new BackgroundWorker();
@@ -35,28 +37,42 @@ namespace bulk_image_downloader.ImageSources {
             worker.WorkerReportsProgress = true;
         }
 
+        public static void SetCookies(List<CefSharp.Cookie> new_cookies)
+        {
+            TheWebClient.SetCookies(new_cookies);
+        }
+
         public virtual string getFolderNameFromURL(Uri url)
         {
             return "";
         }
 
-        void worker_DoWork(object sender, DoWorkEventArgs e) {
+        void worker_DoWork(object sender, DoWorkEventArgs e)
+        {
             List<Uri> pages = new List<Uri>();
             Dictionary<Uri, List<Uri>> images = new Dictionary<Uri, List<Uri>>();
             Uri starting_page = new Uri(this.url.ToString());
 
-            if (!Properties.Settings.Default.DetectAdditionalPages) {
+            if (!Properties.Settings.Default.DetectAdditionalPages)
+            {
                 pages.Add(starting_page);
-            } else {
+            }
+            else {
                 pages = GetPages(GetPageContents(starting_page));
+                if (pages.Count == 0)
+                {
+                    pages.Add(starting_page);
+                }
             }
 
 
-            foreach (Uri page in pages) {
+            foreach (Uri page in pages)
+            {
                 images.Add(page, new List<Uri>());
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(100);
                 List<Uri> page_images = GetImagesFromPage(GetPageContents(page));
-                foreach (Uri image in page_images) {
+                foreach (Uri image in page_images)
+                {
                     images[page].Add(image);
                 }
             }
@@ -68,39 +84,50 @@ namespace bulk_image_downloader.ImageSources {
         abstract protected List<Uri> GetPages(String page_contents);
         abstract protected List<Uri> GetImagesFromPage(String page_contents);
 
-        public void Start() {
-            if (worker.IsBusy) {
+        public void Start()
+        {
+            if (worker.IsBusy)
+            {
                 pause_work = false;
-            } else {
+            }
+            else {
                 worker.RunWorkerAsync();
             }
         }
 
-        public void Pause() {
+        public void Pause()
+        {
             pause_work = true;
         }
 
-        public void Cancel() {
+        public void Cancel()
+        {
             worker.CancelAsync();
         }
 
-        protected void NotifyPropertyChanged(String propertyName = "") {
-            if (PropertyChanged != null) {
+        protected void NotifyPropertyChanged(String propertyName = "")
+        {
+            if (PropertyChanged != null)
+            {
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
             }
         }
 
 
-        protected void IfPausedWaitUntilUnPaused() {
-            while (pause_work) {
+        protected void IfPausedWaitUntilUnPaused()
+        {
+            while (pause_work)
+            {
                 Thread.Sleep(500);
             }
         }
 
-        protected virtual void SetCustomRequestHeaders(HttpWebRequest req) {
+        protected virtual void SetCustomRequestHeaders(HttpWebRequest req)
+        {
         }
 
-        protected string GetPageContents(Uri url) {
+        protected string GetPageContents(Uri url)
+        {
             //HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
             //req.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
             //req.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8";
@@ -178,48 +205,29 @@ namespace bulk_image_downloader.ImageSources {
             //    }
             //}
 
-
-            using (WebClient wc = new WebClient())
+            for (int i = 0; i < 5; i++)
             {
-                wc.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-                wc.Headers.Add("User-Agent","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36");
-                //wc.Headers.Add("Accept-Encoding", "gzip, deflate");
-                wc.Headers.Add("Accept-Charset", "UTF-8");
-                wc.Headers.Add("Accept-Language", "en-US,en;q=0.8");
-
-                if (!String.IsNullOrWhiteSpace(this.lastCookie))
+                try
                 {
-                    wc.Headers.Add("Cookie", this.lastCookie);
-                } else if( StarterCookies!=null) {
-                    wc.Headers.Add("Cookie",StarterCookies.ToString());
+                    String data = TheWebClient.DownloadString(url);
+                    Console.Out.WriteLine("Total characters in page data: " + data.Length);
+                    return data;
                 }
-                wc.Headers.Add("Upgrade-Insecure-Requests", "1");
-                for (int i = 0; i < 5; i++)
+                catch (Exception ex)
                 {
-                    try
+                    if (i == 4)
                     {
-                        String data = wc.DownloadString(url);
-                        Console.Out.WriteLine("Total characters in page data: " + data.Length);
-                        lastSetCookie = wc.ResponseHeaders["Set-Cookie"];
-                        if (!String.IsNullOrWhiteSpace(lastSetCookie)) {
-                            this.lastCookie = lastSetCookie.Split(';')[0];
-                        }
-                        return data;
-                    }
-                    catch (Exception ex)
-                    {
-                        if (i == 4)
-                        {
-                            throw new Exception("Error while attempting to get page contents for: " + url.ToString(), ex);
-                        }
+                        throw new Exception("Error while attempting to get page contents for: " + url.ToString(), ex);
                     }
                 }
             }
             return "";
         }
 
+
+
     }
 
-   
+
 
 }

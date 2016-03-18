@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 namespace bulk_image_downloader.ImageSources {
     public class ShimmieImageSource : AImageSource {
 
-        private static Regex address_regex = new Regex(@"((.+)/post/list/[^/]+/?)(\d+)");
+        private static Regex address_regex = new Regex(@"((.+)/post/list/([^/]+)/?)(\d+)");
         private static Regex page_nav_regex = new Regex(@"/post/list/[^/]+/(\d+)");
         private static Regex images_regex = new Regex("class='[^'\"]+' href='(/post/view/[\\d]+)'");
         private static Regex image_regex = new Regex("http://.+/_images/[^'\"]+");
@@ -20,6 +20,7 @@ namespace bulk_image_downloader.ImageSources {
 
         private string address_root;
         private string query_root;
+        private string album_name;
 
         public ShimmieImageSource(Uri url)
             : base(url) {
@@ -31,7 +32,20 @@ namespace bulk_image_downloader.ImageSources {
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             address_root = address_matches[0].Groups[2].Value;
             query_root = address_matches[0].Groups[1].Value;
+            album_name= address_matches[0].Groups[3].Value;
 
+        }
+
+
+        public override string getFolderNameFromURL(Uri url)
+        {
+            if (!address_regex.IsMatch(url.ToString()))
+            {
+                throw new Exception("Hentai Foundry URL not understood");
+            }
+            MatchCollection address_matches = address_regex.Matches(url.ToString());
+            string album_name = address_matches[0].Groups[3].Value;
+            return album_name;
         }
 
         private static int GetHighestPageNumber(string page_contents) {
@@ -66,7 +80,7 @@ namespace bulk_image_downloader.ImageSources {
                     total_pages = test;
                     new_max_found = true;
                     test_url = query_root + total_pages;
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Thread.Sleep(100);
                     page_contents = GetPageContents(new Uri(test_url));
                 }
             }

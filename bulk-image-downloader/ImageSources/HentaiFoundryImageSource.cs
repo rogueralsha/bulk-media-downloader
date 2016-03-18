@@ -20,26 +20,11 @@ namespace bulk_image_downloader.ImageSources {
         private string query_root;
         private string album_name;
 
-        private static CachedCookies cached_cookies = null;
-        public override CachedCookies StarterCookies
-        {
-            get
-            {
-                return cached_cookies;
-            }
-
-             set
-            {
-                cached_cookies = value;
-            }
-        }
-
-
         public override bool RequiresLogin
         {
             get
             {
-                if(cached_cookies!=null&&!cached_cookies.Expired)
+                if (SuperWebClient.HasValidCookiesForDomain(new Uri("http://hentaifoundry.com")))
                 {
                     return false;
                 }
@@ -68,7 +53,7 @@ namespace bulk_image_downloader.ImageSources {
                 throw new Exception("Hentai Foundry URL not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
-            album_name = address_matches[0].Groups[3].Value;
+            string album_name = address_matches[0].Groups[3].Value;
             return album_name;
         }
 
@@ -109,7 +94,7 @@ namespace bulk_image_downloader.ImageSources {
                     total_pages = test;
                     new_max_found = true;
                     test_url = query_root + @"/page/" + total_pages;
-                    System.Threading.Thread.Sleep(1000);
+                    System.Threading.Thread.Sleep(100);
                     page_contents = GetPageContents(new Uri(test_url));
                 }
             }

@@ -58,6 +58,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -78,7 +79,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="CachedCookies.cs" />
+    <Compile Include="SuperWebClient .cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="ImageSources\HentaiFoundryImageSource.cs" />
     <Compile Include="MultiLineInput.xaml.cs">
       <DependentUpon>MultiLineInput.xaml</DependentUpon>

@@ -142,7 +142,7 @@ namespace bulk_image_downloader
                 {
                     WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
                     loginWindow.ShowDialog();
-                    source.StarterCookies = loginWindow.FoundCookies;
+                    AImageSource.SetCookies(loginWindow.FoundCookies);
 
                 }
 

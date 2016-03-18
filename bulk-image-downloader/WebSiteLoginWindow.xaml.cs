@@ -19,12 +19,12 @@ namespace bulk_image_downloader
     /// <summary>
     /// Interaction logic for WebSiteLoginWindow.xaml
     /// </summary>
-    public partial class WebSiteLoginWindow : Window
+    public partial class WebSiteLoginWindow : Window, CefSharp.ICookieVisitor
     {
         private string login_url;
         private string desired_cookie_name;
 
-        private CachedCookies _cookies = new CachedCookies();
+        private List<CefSharp.Cookie> VisitedCookies = new List<CefSharp.Cookie>();
 
         public WebSiteLoginWindow(string login_url, string desired_cookie_name)
         {
@@ -32,23 +32,43 @@ namespace bulk_image_downloader
             this.login_url = login_url;
             this.desired_cookie_name = desired_cookie_name;
             InitializeComponent();
-            
-            this.webBrowser.Address=login_url;
+
+            this.webBrowser.Address = login_url;
+
         }
 
-        public CachedCookies FoundCookies
+        public bool Visit(CefSharp.Cookie cookie, int count, int total, ref bool deleteCookie)
+        {
+            this.VisitedCookies.Add(cookie);
+
+            return true;
+        }
+
+
+        public List<CefSharp.Cookie> FoundCookies
         {
             get
             {
-                ICookieManager cookie_managed = Cef.GetGlobalCookieManager();
-                cookie_managed.VisitUrlCookies(login_url, false, _cookies);
-                //cookie_managed.VisitAllCookies(_cookies);
+                ICookieManager cookie_manager = Cef.GetGlobalCookieManager();
+                cookie_manager.VisitUrlCookies(login_url, true, this);
+
                 System.Threading.Thread.Sleep(1000); //Gotta give the cookies time to populate
-                return _cookies;
+                return VisitedCookies;
             }
         }
 
+        private void okButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.DialogResult = true;
+            this.Close();
+        }
 
+        private void cancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.DialogResult = false;
+            this.Close();
+
+        }
     }
 
 

@@ -23,7 +23,7 @@ namespace bulk_image_downloader {
 
     class Downloadable : INotifyPropertyChanged {
         private Thread download_thread;
-        private WebClient client;
+        private SuperWebClient client;
 
         public int MaxAttempts { get; set; }
 
@@ -284,6 +284,10 @@ namespace bulk_image_downloader {
         public void Start() {
             this.State = DownloadState.Downloading;
             try {
+                if(this.download_thread.ThreadState== ThreadState.Stopped)
+                {
+                    this.download_thread = new Thread(DownloadThread);
+                }
                 this.download_thread.Start();
             } catch (ThreadStartException ex)
             {
@@ -321,7 +325,7 @@ namespace bulk_image_downloader {
 
                 System.Threading.Thread.Sleep(this.StartDelay);
 
-                client = new WebClient();
+                client = new SuperWebClient();
                 client.DownloadProgressChanged += wc_DownloadProgressChanged;
                 client.DownloadDataCompleted +=  client_DownloadCompleted;
                 client.DownloadStringCompleted += client_DownloadCompleted;
