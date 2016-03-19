@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 using CefSharp;
 using CefSharp.OffScreen; 
 
-namespace bulk_image_downloader.ImageSources {
+namespace BulkMediaDownloader.ImageSources {
     public class DeviantArtImageSource : AImageSource {
         private readonly static Regex root_name = new Regex("http://(([^.]+)\\.deviantart\\.com)/gallery/");
         private readonly static Regex next_page_regex = new Regex("href=\"(/gallery/?.*?offset=(\\d+)[^\"]*)\"");

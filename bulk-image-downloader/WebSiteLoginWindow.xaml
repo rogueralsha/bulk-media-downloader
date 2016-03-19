@@ -1,13 +1,25 @@
-﻿<Window x:Class="bulk_image_downloader.WebSiteLoginWindow"
+﻿<Window x:Class="BulkMediaDownloader.WebSiteLoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:bulk_image_downloader"
+        xmlns:local="clr-namespace:BulkMediaDownloader"
                 xmlns:cefSharp="clr-namespace:CefSharp.Wpf;assembly=CefSharp.Wpf"
         mc:Ignorable="d"
-        Title="WebSiteLoginWindow" Height="600" Width="700" WindowStartupLocation="CenterScreen" >
+        Title="Please log in to the web site" Height="600" Width="700" WindowStartupLocation="CenterScreen" >
     <Grid>
-        <cefSharp:ChromiumWebBrowser Grid.Row="0" Name="webBrowser" Grid.ColumnSpan="2" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="40" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="100" />
+            <ColumnDefinition Width="100" />
+        </Grid.ColumnDefinitions>
+        <cefSharp:ChromiumWebBrowser Grid.Row="0" Grid.Column="0" Name="webBrowser" Grid.ColumnSpan="3" />
+        <Label Content="Please log into the web site above, then click OK" Grid.Row="1" Grid.Column="0" />
+        <Button x:Name="okButton" Content="OK" Click="okButton_Click" Grid.Row="1" Grid.Column="1" />
+        <Button x:Name="cancelButton" Content="Cancel" Click="cancelButton_Click" Grid.Row="1" Grid.Column="2" />
     </Grid>
 </Window>

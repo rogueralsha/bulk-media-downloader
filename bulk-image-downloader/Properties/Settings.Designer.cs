@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace bulk_image_downloader.Properties {
+namespace BulkMediaDownloader.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
@@ -80,18 +80,6 @@ namespace bulk_image_downloader.Properties {
             }
             set {
                 this["LastDownloadDir"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string DeviantArtKey {
-            get {
-                return ((string)(this["DeviantArtKey"]));
-            }
-            set {
-                this["DeviantArtKey"] = value;
             }
         }
     }

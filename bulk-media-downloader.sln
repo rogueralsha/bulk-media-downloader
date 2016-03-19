@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bulk-image-downloader", "bulk-image-downloader\bulk-image-downloader.csproj", "{34666B18-FEAE-4B95-9C45-5FD1E3A7E415}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "bulk-media-downloader", "bulk-image-downloader\bulk-media-downloader.csproj", "{34666B18-FEAE-4B95-9C45-5FD1E3A7E415}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

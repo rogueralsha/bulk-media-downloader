@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace bulk_image_downloader.ImageSources {
+namespace BulkMediaDownloader.ImageSources {
     public class NextGENImageSource: AImageSource {
         public NextGENImageSource(Uri url)
             : base(url) {

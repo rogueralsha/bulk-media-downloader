@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Net;
 using System.Xml;
-namespace bulk_image_downloader.ImageSources
+namespace BulkMediaDownloader.ImageSources
 {
     class JuiceBoxConfigFile {
         XmlDocument doc;

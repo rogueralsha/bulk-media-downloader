@@ -8,7 +8,7 @@ using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace bulk_image_downloader.ImageSources {
+namespace BulkMediaDownloader.ImageSources {
     public class GelbooruImageSource : AImageSource {
 
         private static Regex address_regex = new Regex(@"((.+)/post/list/[^/]+/?)(\d+)");

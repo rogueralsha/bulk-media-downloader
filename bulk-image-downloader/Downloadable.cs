@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Xml;
-namespace bulk_image_downloader {
+namespace BulkMediaDownloader {
     enum DownloadState {
         Pending,
         Paused,
@@ -71,6 +71,7 @@ namespace bulk_image_downloader {
                 NotifyPropertyChanged("StateText");
                 NotifyPropertyChanged("Speed");
                 NotifyPropertyChanged("ProgressText");
+                NotifyPropertyChanged("Progress");
             }
         }
         public string StateText {
@@ -134,6 +135,10 @@ namespace bulk_image_downloader {
 
         public int Progress {
             get {
+                if(State== DownloadState.Complete|| State== DownloadState.Skipped) {
+                    return 100;
+                }
+
                 if (Length <= 0) {
                     return 0;
                 }
@@ -154,6 +159,7 @@ namespace bulk_image_downloader {
                 _attempts = value;
                 NotifyPropertyChanged("Attempts");
                 NotifyPropertyChanged("ProgressText");
+                NotifyPropertyChanged("Progress");
 
             }
         }

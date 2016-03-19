@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace bulk_image_downloader.ImageSources {
+namespace BulkMediaDownloader.ImageSources {
     public class FlickrImageSource: AImageSource {
         private static Regex PagesRegex = new Regex(@"href=""(/photos/[^/]+/page(\d+/))""");
         private static Regex ImageRegex = new Regex(@"""url"":""(https:\\/\\/[^\.]+.staticflickr.com\\/\d+\\/+\d+\\/((\d+)_[a-z0-9]+_([a-z]).([a-z]+)))""");

@@ -8,7 +8,7 @@ using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace bulk_image_downloader.ImageSources {
+namespace BulkMediaDownloader.ImageSources {
     public class HentaiFoundryImageSource : AImageSource {
         //http://www.hentai-foundry.com/pictures/user/GENSHI
         private static Regex address_regex = new Regex(@"((.+)/pictures/user/([^/]+))");

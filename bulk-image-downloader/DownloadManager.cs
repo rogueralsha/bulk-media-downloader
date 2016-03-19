@@ -8,7 +8,7 @@ using System.Collections.ObjectModel;
 using System.Xml;
 using System.IO;
 
-namespace bulk_image_downloader {
+namespace BulkMediaDownloader {
 
     class DownloadManager : ObservableCollection<Downloadable>, INotifyPropertyChanged {
 
@@ -31,11 +31,29 @@ namespace bulk_image_downloader {
 
         private static DownloadManager manager;
 
-        public int DownloadProgress {
+        public int Progress {
             get {
-                return 50;
+                double remaining = CompletedDownloads;
+                double total = this.Count;
+                double percent = remaining / total;
+                return (int)Math.Ceiling(percent*100);
             }
         }
+        public double ProgressDouble {
+            get {
+                double remaining = CompletedDownloads;
+                double total = this.Count;
+                double percent = remaining / total;
+                return percent;
+            }
+        }
+        public string ProgressText {
+            get {
+                return CompletedDownloads.ToString() + "/" + this.Count.ToString();
+            }
+        }
+
+
 
         public static int MaxConcurrentDownloads {
             get {
@@ -61,6 +79,16 @@ namespace bulk_image_downloader {
             }
         }
 
+        public int CompletedDownloads {
+            get {
+                int output = 0;
+                foreach (Downloadable dl in this) {
+                    if (dl.State == DownloadState.Complete || dl.State == DownloadState.Skipped)
+                        output++;
+                }
+                return output;
+            }
+        }
         public DownloadManager() {
             manager = this;
                 if (!String.IsNullOrWhiteSpace(Properties.Settings.Default.Downloadables)) {
@@ -83,6 +111,13 @@ namespace bulk_image_downloader {
                 }
             SaveAll();
 
+        }
+
+        private void notifyProgressProperties() {
+            manager.NotifyPropertyChanged("Progress");
+            manager.NotifyPropertyChanged("ProgressDouble");
+            manager.NotifyPropertyChanged("ProgressText");
+            manager.NotifyPropertyChanged("RemainingDownloads");
         }
 
         public void Start() {
@@ -137,7 +172,8 @@ namespace bulk_image_downloader {
         {
             if(e.PropertyName=="State")
             {
-                manager.NotifyPropertyChanged("RemainingDownloads");
+                notifyProgressProperties();
+                
             }
         }
 
@@ -199,6 +235,7 @@ namespace bulk_image_downloader {
                 }
             }
             SaveAll();
+            notifyProgressProperties();
         }
 
         public static void SaveAll() {
@@ -225,6 +262,7 @@ namespace bulk_image_downloader {
                 }
                 Properties.Settings.Default.Save();
             }
+
         }
 
         public void RestartFailed() {
@@ -238,6 +276,29 @@ namespace bulk_image_downloader {
             SaveAll();
         }
 
+        public void RestartAll() {
+            lock (manager) {
+                for (int i = 0; i < manager.Count; i++) {
+                    if (manager[i].State == DownloadState.Error|| 
+                        manager[i].State == DownloadState.Paused) {
+                        manager[i].Reset();
+                    }
+                }
+            }
+            SaveAll();
+        }
+
+        public void PauseAll() {
+            lock (manager) {
+                for (int i = 0; i < manager.Count; i++) {
+                    if (manager[i].State == DownloadState.Pending||
+                        manager[i].State == DownloadState.Downloading) {
+                        manager[i].Pause();
+                    }
+                }
+            }
+            SaveAll();
+        }
 
 
     }

@@ -1,19 +1,29 @@
-﻿<Window x:Class="bulk_image_downloader.MultiLineInput"
+﻿<Window x:Class="BulkMediaDownloader.MultiLineInput"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:bulk_image_downloader"
+        xmlns:local="clr-namespace:BulkMediaDownloader"
         mc:Ignorable="d"
-        Title="MultiLineInput" Height="324" Width="628">
+        Title="Input URL(s) to download from" Height="350" Width="600" WindowStartupLocation="CenterOwner">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="21*"/>
-            <ColumnDefinition Width="9*"/>
-            <ColumnDefinition Width="116*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="100"/>
+            <ColumnDefinition Width="100"/>
+            <ColumnDefinition Width="100"/>
         </Grid.ColumnDefinitions>
-        <TextBox x:Name="textBox" AcceptsReturn="True" HorizontalAlignment="Left" Height="248" Margin="10,10,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="600" Grid.ColumnSpan="3"/>
-        <Button x:Name="button" Content="OK" Grid.Column="2" HorizontalAlignment="Left" Margin="109,263,0,0" VerticalAlignment="Top" Width="75" Click="button_Click"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+
+        <TextBox x:Name="textBox" AcceptsReturn="True"   Margin="10,10,10,10" TextWrapping="Wrap" 
+                 Text="" Grid.ColumnSpan="4" Grid.Row="0" Grid.Column="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+        <Button x:Name="clearButton" Content="Clear" Click="clearButton_Click" Grid.Row="1" Grid.Column="1"/>
+        <Button x:Name="okButton" Content="OK" Click="button_Click" Grid.Row="1" Grid.Column="2"/>
+        <Button x:Name="cancelButton" Content="Cancel" Click="cancelButton_Click" Grid.Row="1" Grid.Column="3"/>
 
     </Grid>
 </Window>

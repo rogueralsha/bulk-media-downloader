@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Ribbon;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -13,287 +14,293 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.WindowsAPICodePack.Dialogs;
-using bulk_image_downloader.ImageSources;
+using BulkMediaDownloader.ImageSources;
 
-namespace bulk_image_downloader
-{
+namespace BulkMediaDownloader {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
-    {
+    public partial class MainWindow : RibbonWindow {
 
         DownloadManager manager;
+        private Queue<UrlToProcess> urls = new Queue<UrlToProcess>();
 
-        private String selected_dir;
-        private String download_dir;
-
-        private Queue<Uri> urls = new Queue<Uri>();
-
-        public MainWindow()
-        {
+        public MainWindow() {
             InitializeComponent();
+            logText.Text = "Process Output" + Environment.NewLine;
         }
 
-        private void DaWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            try
-            {
+        private void DaWindow_Loaded(object sender, RoutedEventArgs e) {
+            try {
                 manager = new DownloadManager();
                 lstDownloadables.DataContext = manager;
                 lstDownloadables.ItemsSource = manager;
-                inputMaxDownloads.DataContext = manager;
-                remainingDownloads.DataContext = manager;
+                statusBarProgress.DataContext = manager;
+                statusProgressBarText.DataContext = manager;
+                maxDownloadsCombo.DataContext = manager;
+                this.DataContext = manager;
+                //remainingDownloads.DataContext = manager;
                 manager.Start();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 MessageBox.Show(this, ex.Message, "Error!");
                 this.Close();
             }
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                startProcess(new Uri(txtURL.Text), false);
+        private bool setDownloadFolder() {
+            CommonOpenFileDialog dlg = new CommonOpenFileDialog();
+            dlg.Title = "Select download folder";
+            dlg.IsFolderPicker = true;
+            dlg.InitialDirectory = Properties.Settings.Default.LastDownloadDir;
+            dlg.AddToMostRecentlyUsedList = false;
+            dlg.AllowNonFileSystemItems = false;
+            dlg.DefaultDirectory = Properties.Settings.Default.LastDownloadDir;
+            dlg.EnsureFileExists = true;
+            dlg.EnsurePathExists = true;
+            dlg.EnsureReadOnly = false;
+            dlg.EnsureValidNames = true;
+            dlg.Multiselect = false;
+            dlg.ShowPlacesList = true;
+
+            if (dlg.ShowDialog(this) == CommonFileDialogResult.Cancel) {
+                return false;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, ex.Message);
-            }
+            string selected_dir = dlg.FileName;
+            Properties.Settings.Default.LastDownloadDir = selected_dir;
+            Properties.Settings.Default.Save();
+            return true;
         }
 
+        private bool processing = false;
+        private void startProcess() {
+            if (urls.Count == 0)
+                return;
 
-        private bool processing =  false;
-        private void startProcess(Uri url, bool resuse_dir)
-        {
+            UrlToProcess url = urls.Dequeue();
+
             AImageSource source = null;
-            statusLabel.Content = "Loading images from " + url.ToString();
-            try
-            {
-                ComboBoxItem item = (ComboBoxItem)cboUrlType.SelectedItem;
 
-                if (!resuse_dir)
-                {
-                    CommonOpenFileDialog dlg = new CommonOpenFileDialog();
-                    dlg.Title = "Select download folder";
-                    dlg.IsFolderPicker = true;
-                    dlg.InitialDirectory = Properties.Settings.Default.LastDownloadDir;
-                    dlg.AddToMostRecentlyUsedList = false;
-                    dlg.AllowNonFileSystemItems = false;
-                    dlg.DefaultDirectory = Properties.Settings.Default.LastDownloadDir;
-                    dlg.EnsureFileExists = true;
-                    dlg.EnsurePathExists = true;
-                    dlg.EnsureReadOnly = false;
-                    dlg.EnsureValidNames = true;
-                    dlg.Multiselect = false;
-                    dlg.ShowPlacesList = true;
-
-                    if (dlg.ShowDialog(this) == CommonFileDialogResult.Cancel)
-                    {
+            statusLabel.Content = "Loading images from " + url.url.ToString();
+            try {
+                if (String.IsNullOrWhiteSpace(Properties.Settings.Default.LastDownloadDir)||
+                    !System.IO.Directory.Exists(Properties.Settings.Default.LastDownloadDir)) {
+                    if (!setDownloadFolder())
                         return;
-                    }
-                    selected_dir = dlg.FileName;
-                    Properties.Settings.Default.LastDownloadDir = selected_dir;
-                    Properties.Settings.Default.Save();
                 }
 
+                string download_dir = Properties.Settings.Default.LastDownloadDir; ;
 
-
-                download_dir = selected_dir;
-
-                switch (item.Tag.ToString())
-                {
+                switch (url.image_source_name) {
                     case "shimmie":
-                        source = new ShimmieImageSource(url);
+                        source = new ShimmieImageSource(url.url);
                         break;
                     case "flickr":
-                        source = new FlickrImageSource(url);
+                        source = new FlickrImageSource(url.url);
                         break;
                     case "juicebox":
-                        //source = new JuiceBoxImageSource(url);
+                        //source = new JuiceBoxImageSource(url.url);
                         break;
                     case "nextgen":
-                        source = new NextGENImageSource(url);
+                        source = new NextGENImageSource(url.url);
                         break;
                     case "deviantart":
-                        source = new DeviantArtImageSource(url);
+                        source = new DeviantArtImageSource(url.url);
                         break;
                     case "hentaifoundry":
-                        source = new HentaiFoundryImageSource(url);
+                        source = new HentaiFoundryImageSource(url.url);
                         break;
                     default:
                         throw new Exception("URL Type not supported");
                 }
 
-                string album_folder = source.getFolderNameFromURL(url);
-                if(!string.IsNullOrWhiteSpace(album_folder))
-                {
+                source.worker.ProgressChanged += Worker_ProgressChanged;
+
+                string album_folder = source.getFolderNameFromURL(url.url);
+                if (!string.IsNullOrWhiteSpace(album_folder)) {
                     download_dir = System.IO.Path.Combine(download_dir, album_folder);
-                    if(!System.IO.Directory.Exists(download_dir))
-                    {
+                    if (!System.IO.Directory.Exists(download_dir)) {
                         System.IO.Directory.CreateDirectory(download_dir);
                     }
                 }
 
-                if (source.RequiresLogin)
-                {
-                    WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
-                    loginWindow.ShowDialog();
-                    AImageSource.SetCookies(loginWindow.FoundCookies);
+                logText.AppendText("Using download location " + download_dir + Environment.NewLine);
 
+                if (source.RequiresLogin) {
+                    WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
+                    loginWindow.Owner = this;
+                    if(!loginWindow.ShowDialog().Value) {
+                        return;
+                    }
+                    AImageSource.SetCookies(loginWindow.FoundCookies);
                 }
 
-                source.worker.RunWorkerCompleted += worker_RunWorkerCompleted;
+                source.worker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(delegate (object sender, System.ComponentModel.RunWorkerCompletedEventArgs e) {
+                    if (e.Error != null) {
+                        MessageBox.Show(e.Error.Message);
+                        if (urls.Count > 0) {
+                            startProcess();
+                            return;
+                        }
+                        processing = false;
+                        EnableInterface();
+                        return;
+                    }
+
+                    Dictionary<Uri, List<Uri>> images = (Dictionary<Uri, List<Uri>>)e.Result;
+                    foreach (Uri page in images.Keys) {
+                        foreach (Uri image in images[page]) {
+                            DownloadManager.DownloadImage(image, download_dir, page.ToString());
+                        }
+                    }
+                    DownloadManager.SaveAll();
+
+                    if (urls.Count > 0) {
+                        startProcess();
+                        return;
+                    }
+
+                    statusLabel.Content = String.Empty;
+
+                    EnableInterface();
+                    processing = false;
+                });
+
                 source.Start();
                 processing = true;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 MessageBox.Show(this, ex.Message);
             }
 
 
         }
 
-        private void DisableInterface()
-        {
+        private void Worker_ProgressChanged(object sender, System.ComponentModel.ProgressChangedEventArgs e) {
+            //statusBarProgress.Value = e.ProgressPercentage;
+
+            if(e.UserState!=null&&!String.IsNullOrWhiteSpace(e.UserState.ToString()))
+                logText.AppendText(e.UserState.ToString() + Environment.NewLine);
+        }
+
+        private void DisableInterface() {
             SetInterface(false);
         }
 
-        private void EnableInterface()
-        {
+        private void EnableInterface() {
             SetInterface(true);
         }
 
-        private void SetInterface(bool enabled)
-        {
+        private void SetInterface(bool enabled) {
 
 
         }
 
-        void worker_RunWorkerCompleted(object sender, System.ComponentModel.RunWorkerCompletedEventArgs e)
-        {
-            if (e.Error != null)
-            {
-                MessageBox.Show(e.Error.Message);
-                if (urls.Count > 0)
-                {
-                    startProcess(urls.Dequeue(), true);
-                    return;
-                }
-                processing = false;
-                EnableInterface();
-                return;
-            }
 
-            Dictionary<Uri, List<Uri>> images = (Dictionary<Uri, List<Uri>>)e.Result;
-            foreach (Uri page in images.Keys)
-            {
-                foreach (Uri image in images[page])
-                {
-                    DownloadManager.DownloadImage(image, download_dir, page.ToString());
-                }
-            }
-            DownloadManager.SaveAll();
-
-            if(urls.Count>0)
-            {
-                startProcess(urls.Dequeue(), true);
-                return;
-            }
-
-            statusLabel.Content = String.Empty;
-
-            EnableInterface();
-            processing = false;
-        }
-
-        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            if (manager != null)
-            {
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e) {
+            if (manager != null) {
                 manager.Stop();
             }
         }
 
-        private void btnClearAll_Click(object sender, RoutedEventArgs e)
-        {
-            this.manager.ClearAllDownloads();
-        }
 
-        private void btnRetryFailed_Click(object sender, RoutedEventArgs e)
-        {
-            this.manager.RestartFailed();
-        }
 
-        private void btnClearCompleted_Click(object sender, RoutedEventArgs e)
-        {
-            manager.ClearCompleted();
-        }
 
-        private void btnPauseSelected_Click(object sender, RoutedEventArgs e)
-        {
-            foreach (Downloadable down in this.lstDownloadables.SelectedItems)
-            {
+
+        //private void chkAllPages_Checked(object sender, RoutedEventArgs e)
+        //{
+        //    if (chkAllPages.IsChecked == true)
+        //    {
+        //        Properties.Settings.Default.DetectAdditionalPages = true;
+        //        Properties.Settings.Default.Save();
+        //    }
+        //    else {
+        //        Properties.Settings.Default.DetectAdditionalPages = false;
+        //        Properties.Settings.Default.Save();
+        //    }
+        //}
+
+        private void pauseButton_Click(object sender, RoutedEventArgs e) {
+            foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
                 down.Pause();
             }
             DownloadManager.SaveAll();
         }
 
-        private void chkAllPages_Checked(object sender, RoutedEventArgs e)
-        {
-            if (chkAllPages.IsChecked == true)
-            {
-                Properties.Settings.Default.DetectAdditionalPages = true;
-                Properties.Settings.Default.Save();
-            }
-            else {
-                Properties.Settings.Default.DetectAdditionalPages = false;
-                Properties.Settings.Default.Save();
-            }
+        private void pauseAllButton_Click(object sender, RoutedEventArgs e) {
+            manager.PauseAll();
+            e.Handled = true;
         }
 
-        private void resume_selected_Click(object sender, RoutedEventArgs e)
-        {
-            foreach (Downloadable down in this.lstDownloadables.SelectedItems)
-            {
+        private void startButton_Click(object sender, RoutedEventArgs e) {
+            foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
                 down.Reset();
             }
             DownloadManager.SaveAll();
         }
 
-        private void button_Click_1(object sender, RoutedEventArgs e)
-        {
-            try
-            {
+        private void startAllButton_Click(object sender, RoutedEventArgs e) {
+            manager.RestartAll();
+            e.Handled = true;
+        }
+
+        private void startFailedButton_Click(object sender, RoutedEventArgs e) {
+            this.manager.RestartFailed();
+            e.Handled = true;
+        }
+
+        private void clearButton_Click(object sender, RoutedEventArgs e) {
+            manager.ClearCompleted();
+        }
+
+        private void clearAllButton_Click(object sender, RoutedEventArgs e) {
+            this.manager.ClearAllDownloads();
+            e.Handled = true;
+        }
+
+        private void clearSelectedButton_Click(object sender, RoutedEventArgs e) {
+            List<Downloadable> to_remove = new List<Downloadable>();
+            foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
+                down.Pause();
+                to_remove.Add(down);
+            }
+            foreach(Downloadable down in to_remove) {
+                manager.Remove(down);
+            }
+            DownloadManager.SaveAll();
+            e.Handled = true;
+        }
+
+        private void addDownload_Click(object sender, RoutedEventArgs e) {
+            try {
+                RibbonMenuItem rmi = (RibbonMenuItem)sender;
+
                 MultiLineInput mli = new MultiLineInput();
-                if (mli.ShowDialog().Value)
-                {
+                mli.Owner = this;
+                if (mli.ShowDialog().Value) {
                     String text = mli.Contents;
                     List<Uri> uris = new List<Uri>();
 
-                    foreach (string url in text.Split('\n'))
-                    {
+                    foreach (string url in text.Split('\n')) {
+                        if (String.IsNullOrWhiteSpace(url))
+                            continue;
+
                         uris.Add(new Uri(url));
                     }
 
-                    foreach(Uri uri in uris)
-                    {
-                        urls.Enqueue(uri);
+                    foreach (Uri uri in uris) {
+                        urls.Enqueue(new UrlToProcess(uri, rmi.Tag.ToString()));
                     }
 
                     if (!processing)
-                        startProcess(urls.Dequeue(), false);
+                        startProcess();
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 MessageBox.Show(this, ex.Message);
             }
-
         }
+
+        private void downloadFolderButton_Click(object sender, RoutedEventArgs e) {
+            setDownloadFolder();
+        }
+
     }
 }

@@ -12,7 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace bulk_image_downloader
+namespace BulkMediaDownloader
 {
     /// <summary>
     /// Interaction logic for MultiLineInput.xaml
@@ -22,6 +22,16 @@ namespace bulk_image_downloader
         public MultiLineInput()
         {
             InitializeComponent();
+            if(Clipboard.ContainsText()) {
+                string text = Clipboard.GetText();
+                string[] lines = text.Split(new char[] { '\n','\r' });
+                foreach(string line in lines) {
+                    Uri test;
+                    if(Uri.TryCreate(line, UriKind.Absolute, out test)) {
+                        textBox.AppendText(test.ToString() +Environment.NewLine);
+                    }
+                }
+            }
         }
         public String Contents
         {
@@ -35,6 +45,15 @@ namespace bulk_image_downloader
         {
             this.DialogResult = true;
             this.Close();
+        }
+
+        private void cancelButton_Click(object sender, RoutedEventArgs e) {
+            this.DialogResult = false;
+            this.Close();
+        }
+
+        private void clearButton_Click(object sender, RoutedEventArgs e) {
+            textBox.Clear();
         }
     }
 }

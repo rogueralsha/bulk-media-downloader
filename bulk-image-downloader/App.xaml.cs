@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace bulk_image_downloader
+namespace BulkMediaDownloader
 {
     /// <summary>
     /// Interaction logic for App.xaml

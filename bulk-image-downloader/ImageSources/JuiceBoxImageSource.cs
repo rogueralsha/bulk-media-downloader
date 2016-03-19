@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Net;
 using System.IO;
 
-namespace bulk_image_downloader.ImageSources {
+namespace BulkMediaDownloader.ImageSources {
     public class JuiceBoxImageSource  {
         //public JuiceBoxImageSource(Uri url)
         //    : base(url) {

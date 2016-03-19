@@ -10,7 +10,7 @@ using System.Threading;
 using CefSharp;
 using CefSharp.OffScreen;
 
-namespace bulk_image_downloader.ImageSources
+namespace BulkMediaDownloader.ImageSources
 {
     public abstract class AImageSource : INotifyPropertyChanged
     {
@@ -58,24 +58,33 @@ namespace bulk_image_downloader.ImageSources
                 pages.Add(starting_page);
             }
             else {
+                worker.ReportProgress(0, "Getting all pages from " + starting_page);
                 pages = GetPages(GetPageContents(starting_page));
                 if (pages.Count == 0)
                 {
+                    worker.ReportProgress(0, "No additional pages found, using starting page");
                     pages.Add(starting_page);
                 }
             }
 
 
-            foreach (Uri page in pages)
-            {
+            for(int i = 0; i < pages.Count; i++) {
+                Uri page = pages[i];
                 images.Add(page, new List<Uri>());
                 System.Threading.Thread.Sleep(100);
+                double divided = ((double)i) / ((double)pages.Count);
+                int progress = (int)Math.Ceiling(divided * 100);
+
+                worker.ReportProgress(progress,"Getting items from page " + page.ToString() + " (" + (i+1) + "/" + pages.Count + ")");
                 List<Uri> page_images = GetImagesFromPage(GetPageContents(page));
+                worker.ReportProgress(progress, page_images.Count + " items found");
                 foreach (Uri image in page_images)
                 {
                     images[page].Add(image);
                 }
             }
+
+            worker.ReportProgress(100, "Done fetching items, total " + images.Count);
 
             e.Result = images;
         }

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net;
 
-namespace bulk_image_downloader
+namespace BulkMediaDownloader
 {
     public class SuperWebClient : WebClient
     {

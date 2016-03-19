@@ -14,7 +14,7 @@ using System.Windows.Shapes;
 using System.Net;
 using CefSharp;
 
-namespace bulk_image_downloader
+namespace BulkMediaDownloader
 {
     /// <summary>
     /// Interaction logic for WebSiteLoginWindow.xaml
