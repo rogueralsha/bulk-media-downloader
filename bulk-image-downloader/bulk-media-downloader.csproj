@@ -80,6 +80,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ImageSources\TumblrImageSource.cs" />
     <Compile Include="SuperWebClient .cs">
       <SubType>Component</SubType>
     </Compile>

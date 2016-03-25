@@ -23,7 +23,7 @@ namespace BulkMediaDownloader.ImageSources {
         private readonly static Regex full_image_regex = new Regex("<img.+?src=\"(http://(orig|img)[^\"]+)\"[\\s\\S]+class=\"dev-content-full[ ]?\">", RegexOptions.Singleline);
 
         private readonly static Regex journal_regex = new Regex(@"class=""journal journal-green journalcontrol free-literature""");
-
+        private readonly static Regex flash_reged = new Regex(@"<iframe class=""flashtime"" src=""([^""]+)""");
         // This matches against the og:image meta tag, not used since hte above options provide better quality matches        
         private readonly static Regex original_image_regex = new Regex("<meta property=\"og: image\" content=\"([^\"]+)\" > ");
         // This matches against the img element that contains the full image, the above data link is better
@@ -135,22 +135,20 @@ namespace BulkMediaDownloader.ImageSources {
 
                 Match im = null;
                 String image_url = null;
-                if (download_url_regex.IsMatch(image_page_contents))
-                {
+                if (download_url_regex.IsMatch(image_page_contents)) {
                     im = download_url_regex.Match(image_page_contents);
                     string download_link = WebUtility.HtmlDecode(im.Groups[1].Value);
                     image_url = TheWebClient.GetRedirectURL(new Uri(download_link), m.Value).ToString();
-                }
-                else if (full_image_regex.IsMatch(image_page_contents))
-                {
+                } else if (full_image_regex.IsMatch(image_page_contents)) {
                     im = full_image_regex.Match(image_page_contents);
                     image_url = im.Groups[1].Value;
-                } else if(journal_regex.IsMatch(image_page_contents))
-                {
+                } else if (flash_reged.IsMatch(image_page_contents)) {
+                    im = flash_reged.Match(image_page_contents);
+                    image_url = im.Groups[1].Value;
+                } else if (journal_regex.IsMatch(image_page_contents)) {
                     // This page is a journal entry, no image to download!
                     continue;
-                } else
-                {
+                } else {
                     string temp = Path.GetTempFileName();
                     System.IO.File.WriteAllLines(temp, image_page_contents.Split('\n'));
                     throw new Exception("Image URL not found on " + m.Value);

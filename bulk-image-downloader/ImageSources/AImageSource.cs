@@ -226,7 +226,7 @@ namespace BulkMediaDownloader.ImageSources
                 {
                     if (i == 4)
                     {
-                        throw new Exception("Error while attempting to get page contents for: " + url.ToString(), ex);
+                        throw new WebException("Error while attempting to get page contents for: " + url.ToString(), ex);
                     }
                 }
             }

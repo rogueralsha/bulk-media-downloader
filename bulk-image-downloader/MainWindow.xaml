@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:kctk="http://schemas.xceed.com/wpf/xaml/toolkit"
-        Title="Bulk Media Downloader" Height="600" Width="800" Name="DaWindow" Closing="MainWindow_Closing" Loaded="DaWindow_Loaded">
+        Title="Bulk Media Downloader" Height="600" Width="1000" Name="DaWindow" Closing="MainWindow_Closing" Loaded="DaWindow_Loaded">
     <Window.TaskbarItemInfo>
         <TaskbarItemInfo Description="An app with a taskbar info description" 
                      ProgressValue="{Binding ProgressDouble}" ProgressState="Normal"/>
@@ -11,21 +11,20 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="140"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="5" />
+            <RowDefinition Height="*" MinHeight="30"/>
             <RowDefinition Height="30"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="555" />
-            <ColumnDefinition Width="5" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+
     <Ribbon Grid.Row="0" Grid.Column="0" x:Name="ribbon" SelectedIndex="0" Grid.ColumnSpan="3" >
             <RibbonTab Header="Downloads">
                 <RibbonGroup>
                     <RibbonMenuButton LargeImageSource="images/add.png" Label="Add">
                         <RibbonMenuItem Header="Shimmie" x:Name="addShimmie" Tag="shimmie"  Click="addDownload_Click"/>
                         <RibbonMenuItem Header="DeviantArt" x:Name="addDeviantArt" Tag="deviantart" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Hentai Foundry" x:Name="addHentaiFoundry" Tag="hentaifoundry" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Tumblr" x:Name="addTumblr" Tag="tumblr" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Flickr" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Hentai Foundry" x:Name="addHentaiFoundry" Tag="hentaifoundry" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="NextGEN Gallery (Wordpress Plugin)" x:Name="addNextGEN" Tag="nextgen" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="JuiceBox" x:Name="addJuiceBox" Tag="juicebox" Click="addDownload_Click"/>
                     </RibbonMenuButton>
@@ -66,6 +65,9 @@
                         </RibbonGallery>
                     </RibbonComboBox>
                 </RibbonGroup>
+                <RibbonGroup Header="Tumblr">
+                    
+                </RibbonGroup>
             </RibbonTab>
         </Ribbon>
         
@@ -77,8 +79,19 @@
                         <ProgressBar Minimum="0" Maximum="100" Height="20" HorizontalAlignment="Stretch"
                              Width="{Binding Path=Width, ElementName=progressColumn}" 
                                         Value="{Binding Progress, Mode=OneWay}"  />
-                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                       Text="{Binding ProgressText, Mode=OneWay}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                       Text="{Binding State, Mode=OneWay}" Grid.Column="0"/>
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                       Text="{Binding ProgressText, Mode=OneWay}" Grid.Column="1"/>
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                       Text="{Binding Speed, Mode=OneWay}" Grid.Column="2"/>
+                        </Grid>
                     </Grid>
                 </DataTemplate>
             </ListView.Resources>
@@ -86,9 +99,7 @@
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="Files" DisplayMemberBinding="{Binding Path=FileName}" Width="300"/>
-                    <GridViewColumn Header="Speed" DisplayMemberBinding="{Binding Path=Speed}" Width="50"/>
-                    <GridViewColumn x:Name="progressColumn" Header="Progress" CellTemplate="{StaticResource ProgressDataTemplate}" Width="100"/>
-                    <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Path=StateText}" Width="75"/>
+                    <GridViewColumn x:Name="progressColumn" Header="Progress" CellTemplate="{StaticResource ProgressDataTemplate}" Width="250"/>
                 </GridView>
             </ListView.View>
             <ListView.ItemContainerStyle>
@@ -118,13 +129,21 @@
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
+            <ListView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Copy Address" Name="contextMenuCopy" Click="contextMenuCopy_Click"/>
+                </ContextMenu>
+            </ListView.ContextMenu>
         </ListView>
-        <GridSplitter Grid.Row="1" Grid.Column="1" Width="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        <TextBox x:Name="logText" Grid.Row="1" Grid.Column="3"  IsReadOnly="True" FontSize="9.333" Text="" 
+        
+        <GridSplitter Grid.Row="2" Grid.Column="0" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <Expander Grid.Row="3" Grid.Column="0" Header="Process Output" ExpandDirection="Down" IsExpanded="True">
+            <TextBox x:Name="logText"    IsReadOnly="True" FontSize="9.333" Text="" TextWrapping="Wrap"
                  TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Aliased" 
-                 FontFamily="Lucida Sans Unicode" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
-
-        <StatusBar Grid.Row="3" Grid.ColumnSpan="3" >
+                 FontFamily="Lucida Sans Unicode" ScrollViewer.VerticalScrollBarVisibility="Visible" 
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+        </Expander>
+        <StatusBar Grid.Row="4"  >
             <StatusBarItem x:Name="statusLabel">
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">

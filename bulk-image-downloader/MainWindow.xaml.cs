@@ -27,7 +27,6 @@ namespace BulkMediaDownloader {
 
         public MainWindow() {
             InitializeComponent();
-            logText.Text = "Process Output" + Environment.NewLine;
         }
 
         private void DaWindow_Loaded(object sender, RoutedEventArgs e) {
@@ -42,7 +41,7 @@ namespace BulkMediaDownloader {
                 //remainingDownloads.DataContext = manager;
                 manager.Start();
             } catch (Exception ex) {
-                MessageBox.Show(this, ex.Message, "Error!");
+                ShowException(ex);
                 this.Close();
             }
         }
@@ -97,14 +96,17 @@ namespace BulkMediaDownloader {
                     case "flickr":
                         source = new FlickrImageSource(url.url);
                         break;
-                    case "juicebox":
+                    //case "juicebox":
                         //source = new JuiceBoxImageSource(url.url);
-                        break;
+                        //break;
                     case "nextgen":
                         source = new NextGENImageSource(url.url);
                         break;
                     case "deviantart":
                         source = new DeviantArtImageSource(url.url);
+                        break;
+                    case "tumblr":
+                        source = new TumblrImageSource(url.url);
                         break;
                     case "hentaifoundry":
                         source = new HentaiFoundryImageSource(url.url);
@@ -136,7 +138,7 @@ namespace BulkMediaDownloader {
 
                 source.worker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(delegate (object sender, System.ComponentModel.RunWorkerCompletedEventArgs e) {
                     if (e.Error != null) {
-                        MessageBox.Show(e.Error.Message);
+                        ShowException(e.Error);
                         if (urls.Count > 0) {
                             startProcess();
                             return;
@@ -168,17 +170,38 @@ namespace BulkMediaDownloader {
                 source.Start();
                 processing = true;
             } catch (Exception ex) {
-                MessageBox.Show(this, ex.Message);
+                ShowException(ex);
             }
 
 
         }
 
-        private void Worker_ProgressChanged(object sender, System.ComponentModel.ProgressChangedEventArgs e) {
-            //statusBarProgress.Value = e.ProgressPercentage;
+        private void ShowException(Exception e, bool show_message_box = true) {
+            if(show_message_box)
+                MessageBox.Show(e.Message);
 
-            if(e.UserState!=null&&!String.IsNullOrWhiteSpace(e.UserState.ToString()))
-                logText.AppendText(e.UserState.ToString() + Environment.NewLine);
+            logText.AppendText(e.Message + Environment.NewLine);
+            logText.AppendText(e.StackTrace + Environment.NewLine);
+            Exception ex = e.InnerException;
+            while (ex != null) {
+                logText.AppendText(ex.Message + Environment.NewLine);
+                logText.AppendText(ex.StackTrace + Environment.NewLine);
+                ex = ex.InnerException;
+            }
+
+        }
+
+        private void Worker_ProgressChanged(object sender, System.ComponentModel.ProgressChangedEventArgs e) {
+            if(e.UserState!= null) {
+                if(e.UserState is Exception) {
+                    ShowException((Exception)e.UserState, false);
+                } else {
+                    if (!String.IsNullOrWhiteSpace(e.UserState.ToString())) {
+                        logText.AppendText(e.UserState.ToString() + Environment.NewLine);
+                        logText.ScrollToEnd();
+                    }
+                }
+            }
         }
 
         private void DisableInterface() {
@@ -294,7 +317,7 @@ namespace BulkMediaDownloader {
                         startProcess();
                 }
             } catch (Exception ex) {
-                MessageBox.Show(this, ex.Message);
+                ShowException(ex);
             }
         }
 
@@ -302,5 +325,13 @@ namespace BulkMediaDownloader {
             setDownloadFolder();
         }
 
+        private void contextMenuCopy_Click(object sender, RoutedEventArgs e) {
+            StringBuilder text = new StringBuilder();
+            foreach(Downloadable item in lstDownloadables.SelectedItems) {
+                text.AppendLine(item.URL.ToString());
+            }
+            if (text.Length > 0)
+                Clipboard.SetText(text.ToString());
+        }
     }
 }
