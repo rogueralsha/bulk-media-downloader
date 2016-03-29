@@ -6,13 +6,14 @@ using System.Threading;
 using System.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Xml;
+using System.Xml.Serialization;
 using System.IO;
 
 namespace BulkMediaDownloader {
 
-    class DownloadManager : ObservableCollection<Downloadable>, INotifyPropertyChanged {
+    public class DownloadManager : ObservableCollection<Downloadable>, INotifyPropertyChanged {
 
-        private Thread supervisor_thread = new Thread(Supervise);
+        private Thread supervisor_thread;
 
         //public static string DownloadDir {
         //    get {
@@ -29,8 +30,7 @@ namespace BulkMediaDownloader {
 
         private static List<string> locker = new List<string>();
 
-        private static DownloadManager manager;
-
+        [XmlIgnore]
         public int Progress {
             get {
                 double remaining = CompletedDownloads;
@@ -39,6 +39,7 @@ namespace BulkMediaDownloader {
                 return (int)Math.Ceiling(percent*100);
             }
         }
+        [XmlIgnore]
         public double ProgressDouble {
             get {
                 double remaining = CompletedDownloads;
@@ -47,6 +48,7 @@ namespace BulkMediaDownloader {
                 return percent;
             }
         }
+        [XmlIgnore]
         public string ProgressText {
             get {
                 return CompletedDownloads.ToString() + "/" + this.Count.ToString();
@@ -54,7 +56,7 @@ namespace BulkMediaDownloader {
         }
 
 
-
+        [XmlIgnore]
         public static int MaxConcurrentDownloads {
             get {
                 return Properties.Settings.Default.MaxConcurrentDownloads;
@@ -64,7 +66,7 @@ namespace BulkMediaDownloader {
                 Properties.Settings.Default.Save();
             }
         }
-
+        [XmlIgnore]
         public int RemainingDownloads
         {
             get
@@ -78,7 +80,7 @@ namespace BulkMediaDownloader {
                 return output;
             }
         }
-
+        [XmlIgnore]
         public int CompletedDownloads {
             get {
                 int output = 0;
@@ -90,34 +92,34 @@ namespace BulkMediaDownloader {
             }
         }
         public DownloadManager() {
-            manager = this;
-                if (!String.IsNullOrWhiteSpace(Properties.Settings.Default.Downloadables)) {
-                    try {
-                        XmlDocument doc = new XmlDocument();
-                        doc.LoadXml(Properties.Settings.Default.Downloadables);
+            supervisor_thread = new Thread(Supervise);
+            this.CollectionChanged += DownloadManager_CollectionChanged;
+        }
 
-                        if (doc.GetElementsByTagName("downloadables").Count > 0) {
-                            XmlElement ele = (XmlElement)doc.GetElementsByTagName("downloadables")[0];
-                            lock (manager) {
-                                Downloadable down = null;
-                                foreach (XmlElement dele in ele.GetElementsByTagName("downloadable")) {
-                                    down = new Downloadable(dele);
-                                down.PropertyChanged += this.Down_PropertyChanged;
-                                    this.Add(down);
-                                }
-                            }
-                        }
-                    } catch { }
+        private void DownloadManager_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add ||
+                e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Replace) {
+                foreach (Downloadable d in e.NewItems) {
+                    d.PropertyChanged += this.Down_PropertyChanged;
                 }
-            SaveAll();
-
+            }
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove ||
+                e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Replace) {
+                foreach (Downloadable d in e.OldItems) {
+                    try {
+                        d.PropertyChanged -= this.Down_PropertyChanged;
+                    } catch (Exception ex) {
+                        Console.Out.Write(ex.Message);
+                    }
+                }
+            }
         }
 
         private void notifyProgressProperties() {
-            manager.NotifyPropertyChanged("Progress");
-            manager.NotifyPropertyChanged("ProgressDouble");
-            manager.NotifyPropertyChanged("ProgressText");
-            manager.NotifyPropertyChanged("RemainingDownloads");
+            NotifyPropertyChanged("Progress");
+            NotifyPropertyChanged("ProgressDouble");
+            NotifyPropertyChanged("ProgressText");
+            NotifyPropertyChanged("RemainingDownloads");
         }
 
         public void Start() {
@@ -129,18 +131,18 @@ namespace BulkMediaDownloader {
             StopTheMadness = true;
         }
 
-        private static void Supervise() {
+        private void Supervise() {
             while (!StopTheMadness) {
-                lock (manager) {
+                lock (this) {
                     int downloading_count = 0;
-                    for (int i = 0; i < manager.Count; i++) {
-                        if (manager[i].State == DownloadState.Downloading) {
+                    for (int i = 0; i < this.Count; i++) {
+                        if (this[i].State == DownloadState.Downloading) {
                             downloading_count++;
                         }
                     }
-                    for (int i = 0; i < manager.Count; i++) {
-                        if ((downloading_count < MaxConcurrentDownloads || manager[i].Type == DownloadType.Text) && manager[i].State == DownloadState.Pending) {
-                            manager[i].Start();
+                    for (int i = 0; i < this.Count; i++) {
+                        if ((downloading_count < MaxConcurrentDownloads || this[i].Type == DownloadType.Text) && this[i].State == DownloadState.Pending) {
+                            this[i].Start();
                             downloading_count++;
                         }
 
@@ -150,18 +152,18 @@ namespace BulkMediaDownloader {
             }
         }
 
-        public static void DownloadImage(Uri url, string download_dir, string source) {
+        public void DownloadImage(Uri url, string download_dir, string source) {
             AddDownloadable(url, download_dir, source, DownloadType.Binary);
         }
 
-        public static Downloadable AddDownloadable(Uri url, string download_dir, string source, DownloadType type) {
+        public Downloadable AddDownloadable(Uri url, string download_dir, string source, DownloadType type) {
             Downloadable down = new Downloadable(url, download_dir);
             down.Type = type;
             down.Source = source;
-            down.PropertyChanged += manager.Down_PropertyChanged;
+            down.PropertyChanged += this.Down_PropertyChanged;
             App.Current.Dispatcher.Invoke((Action)(() => {
-                lock (manager) {
-                    manager.Add(down);
+                lock (this) {
+                    this.Add(down);
                 }
             }));
 
@@ -214,10 +216,10 @@ namespace BulkMediaDownloader {
         //}
 
         public void ClearAllDownloads() {
-            lock (manager) {
-                for (int i = 0; i < manager.Count; i++) {
+            lock (this) {
+                for (int i = 0; i < this.Count; i++) {
                     try {
-                        manager[i].Pause();
+                        this[i].Pause();
                     } catch { }
                 }
                 this.Clear();
@@ -226,10 +228,10 @@ namespace BulkMediaDownloader {
         }
 
         public void ClearCompleted() {
-            lock (manager) {
-                for (int i = 0; i < manager.Count; i++) {
-                    if (manager[i].State == DownloadState.Complete || manager[i].State == DownloadState.Skipped) {
-                        manager.RemoveAt(i);
+            lock (this) {
+                for (int i = 0; i < this.Count; i++) {
+                    if (this[i].State == DownloadState.Complete || this[i].State == DownloadState.Skipped) {
+                        this.RemoveAt(i);
                         i--;
                     }
                 }
@@ -238,38 +240,21 @@ namespace BulkMediaDownloader {
             notifyProgressProperties();
         }
 
-        public static void SaveAll() {
-            lock (manager) {
-                XmlDocument doc = new XmlDocument();
-                XmlDeclaration xmlDeclaration = doc.CreateXmlDeclaration("1.0", "UTF-8", null);
-                XmlElement root = doc.DocumentElement;
-                doc.InsertBefore(xmlDeclaration, root);
-
-                XmlElement downloadables = doc.CreateElement("downloadables");
-
-                doc.AppendChild(downloadables);
-
-                for (int i = 0; i < manager.Count; i++) {
-                    downloadables.AppendChild(manager[i].CreateElement(doc));
-                }
-
-                using (var stringWriter = new StringWriter()) {
-                    using (var xmlTextWriter = XmlWriter.Create(stringWriter)) {
-                        doc.WriteTo(xmlTextWriter);
-                        xmlTextWriter.Flush();
-                        Properties.Settings.Default.Downloadables = stringWriter.GetStringBuilder().ToString();
-                    }
-                }
-                Properties.Settings.Default.Save();
+        public  void SaveAll() {
+            XmlSerializer x = new XmlSerializer(this.GetType());
+            StringBuilder sb = new StringBuilder();
+            using (StringWriter sw = new StringWriter(sb)) {
+                x.Serialize(sw, this);
             }
 
+            Properties.Settings.Default.Save();
         }
 
         public void RestartFailed() {
-            lock (manager) {
-                for (int i = 0; i < manager.Count; i++) {
-                    if (manager[i].State == DownloadState.Error) {
-                        manager[i].Reset();
+            lock (this) {
+                for (int i = 0; i < this.Count; i++) {
+                    if (this[i].State == DownloadState.Error) {
+                        this[i].Reset();
                     }
                 }
             }
@@ -277,11 +262,11 @@ namespace BulkMediaDownloader {
         }
 
         public void RestartAll() {
-            lock (manager) {
-                for (int i = 0; i < manager.Count; i++) {
-                    if (manager[i].State == DownloadState.Error|| 
-                        manager[i].State == DownloadState.Paused) {
-                        manager[i].Reset();
+            lock (this) {
+                for (int i = 0; i < this.Count; i++) {
+                    if (this[i].State == DownloadState.Error||
+                        this[i].State == DownloadState.Paused) {
+                        this[i].Reset();
                     }
                 }
             }
@@ -289,11 +274,11 @@ namespace BulkMediaDownloader {
         }
 
         public void PauseAll() {
-            lock (manager) {
-                for (int i = 0; i < manager.Count; i++) {
-                    if (manager[i].State == DownloadState.Pending||
-                        manager[i].State == DownloadState.Downloading) {
-                        manager[i].Pause();
+            lock (this) {
+                for (int i = 0; i < this.Count; i++) {
+                    if (this[i].State == DownloadState.Pending||
+                        this[i].State == DownloadState.Downloading) {
+                        this[i].Pause();
                     }
                 }
             }

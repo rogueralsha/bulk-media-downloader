@@ -7,8 +7,9 @@ using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Xml;
+using System.Xml.Serialization;
 namespace BulkMediaDownloader {
-    enum DownloadState {
+    public enum DownloadState {
         Pending,
         Paused,
         Downloading,
@@ -16,19 +17,22 @@ namespace BulkMediaDownloader {
         Skipped,
         Error
     }
-    enum DownloadType {
+    public enum DownloadType {
         Binary,
         Text
     }
 
-    class Downloadable : INotifyPropertyChanged {
+    [Serializable]
+    public class Downloadable : INotifyPropertyChanged {
         private Thread download_thread;
         private SuperWebClient client;
 
+        [XmlIgnore]
         public int MaxAttempts { get; set; }
 
         public DownloadType Type = DownloadType.Binary;
 
+        [XmlIgnore]
         public string FileName {
             get {
                 StringBuilder path =  new StringBuilder(Uri.UnescapeDataString(this.URL.ToString()));
@@ -46,16 +50,25 @@ namespace BulkMediaDownloader {
                 return file;
             }
         }
+        [XmlIgnore]
         public Uri URL { get; protected set; }
-
+        public String URLString {
+            get {
+                return URL.ToString();
+            }
+            set {
+                URL = new Uri(value);
+            }
+        }
         //public Object Data { get; protected set; }
 
 
         private DateTime download_start_time;
 
-        public String DownloadDir { get; protected set; }
+        public String DownloadDir { get;  set; }
         public String Source { get; set; }
 
+        [XmlIgnore]
         public int StartDelay = 1000;
 
         #region Properties
@@ -65,7 +78,7 @@ namespace BulkMediaDownloader {
                 return _State;
             }
 
-            protected set {
+             set {
                 _State = value;
                 NotifyPropertyChanged("State");
                 NotifyPropertyChanged("StateText");
@@ -74,6 +87,7 @@ namespace BulkMediaDownloader {
                 NotifyPropertyChanged("Progress");
             }
         }
+        [XmlIgnore]
         public string StateText {
             get {
                 return State.ToString();
@@ -81,6 +95,7 @@ namespace BulkMediaDownloader {
         }
 
         private Exception _except = null;
+        [XmlIgnore]
         public Exception Exception {
             get {
                 return _except;
@@ -92,6 +107,7 @@ namespace BulkMediaDownloader {
             }
 
         }
+        [XmlIgnore]
         public String Error {
             get {
                 if (_except != null) {
@@ -108,7 +124,7 @@ namespace BulkMediaDownloader {
                 return _length;
             }
 
-            protected set {
+            set {
                 _length = value;
                 NotifyPropertyChanged("Length");
                 NotifyPropertyChanged("Progress");
@@ -118,6 +134,7 @@ namespace BulkMediaDownloader {
         }
 
         private long _downloaded_length = -1;
+        [XmlIgnore]
         public long DownloadedLength {
             get {
                 return _downloaded_length;
@@ -132,7 +149,7 @@ namespace BulkMediaDownloader {
         }
 
 
-
+        [XmlIgnore]
         public int Progress {
             get {
                 if(State== DownloadState.Complete|| State== DownloadState.Skipped) {
@@ -151,6 +168,7 @@ namespace BulkMediaDownloader {
         }
 
         private int _attempts = 0;
+        [XmlIgnore]
         public int Attempts {
             get {
                 return _attempts;
@@ -168,7 +186,7 @@ namespace BulkMediaDownloader {
 
         #region "Download status"
 
-
+        [XmlIgnore]
         public string Speed {
             get {
                 if (download_start_time == null || this.State != DownloadState.Downloading) {
@@ -184,7 +202,7 @@ namespace BulkMediaDownloader {
 
             }
         }
-
+        [XmlIgnore]
         public string ProgressText {
             get {
                 StringBuilder output = new StringBuilder();
@@ -211,6 +229,7 @@ namespace BulkMediaDownloader {
         #endregion
 
         #region Constructors
+        public Downloadable() { }
         public Downloadable(Uri url, string download_dir) {
             this.URL = url;
             this.DownloadDir = download_dir;
@@ -290,7 +309,7 @@ namespace BulkMediaDownloader {
         public void Start() {
             this.State = DownloadState.Downloading;
             try {
-                if(this.download_thread.ThreadState== ThreadState.Stopped)
+                if(this.download_thread==null||this.download_thread.ThreadState== ThreadState.Stopped)
                 {
                     this.download_thread = new Thread(DownloadThread);
                 }

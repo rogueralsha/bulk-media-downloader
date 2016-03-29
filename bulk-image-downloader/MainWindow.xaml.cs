@@ -22,7 +22,16 @@ namespace BulkMediaDownloader {
     /// </summary>
     public partial class MainWindow : RibbonWindow {
 
-        DownloadManager manager;
+        DownloadManager manager {
+            get {
+                if(Properties.Settings.Default.Downloads==null) {
+                    DownloadManager dm = new DownloadManager();
+                    Properties.Settings.Default.Downloads = dm;
+                    dm.SaveAll();
+                }
+                return Properties.Settings.Default.Downloads;
+            }
+        }
         private Queue<UrlToProcess> urls = new Queue<UrlToProcess>();
 
         public MainWindow() {
@@ -31,7 +40,6 @@ namespace BulkMediaDownloader {
 
         private void DaWindow_Loaded(object sender, RoutedEventArgs e) {
             try {
-                manager = new DownloadManager();
                 lstDownloadables.DataContext = manager;
                 lstDownloadables.ItemsSource = manager;
                 statusBarProgress.DataContext = manager;
@@ -151,10 +159,10 @@ namespace BulkMediaDownloader {
                     Dictionary<Uri, List<Uri>> images = (Dictionary<Uri, List<Uri>>)e.Result;
                     foreach (Uri page in images.Keys) {
                         foreach (Uri image in images[page]) {
-                            DownloadManager.DownloadImage(image, download_dir, page.ToString());
+                            manager.DownloadImage(image, download_dir, page.ToString());
                         }
                     }
-                    DownloadManager.SaveAll();
+                    manager.SaveAll();
 
                     if (urls.Count > 0) {
                         startProcess();
@@ -245,7 +253,7 @@ namespace BulkMediaDownloader {
             foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
                 down.Pause();
             }
-            DownloadManager.SaveAll();
+            manager.SaveAll();
         }
 
         private void pauseAllButton_Click(object sender, RoutedEventArgs e) {
@@ -257,7 +265,7 @@ namespace BulkMediaDownloader {
             foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
                 down.Reset();
             }
-            DownloadManager.SaveAll();
+            manager.SaveAll();
         }
 
         private void startAllButton_Click(object sender, RoutedEventArgs e) {
@@ -288,7 +296,7 @@ namespace BulkMediaDownloader {
             foreach(Downloadable down in to_remove) {
                 manager.Remove(down);
             }
-            DownloadManager.SaveAll();
+            manager.SaveAll();
             e.Handled = true;
         }
 

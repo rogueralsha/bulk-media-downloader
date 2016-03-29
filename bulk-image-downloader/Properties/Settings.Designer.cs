@@ -37,18 +37,6 @@ namespace BulkMediaDownloader.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string Downloadables {
-            get {
-                return ((string)(this["Downloadables"]));
-            }
-            set {
-                this["Downloadables"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("1")]
         public int MaxConcurrentDownloads {
             get {
@@ -80,6 +68,17 @@ namespace BulkMediaDownloader.Properties {
             }
             set {
                 this["LastDownloadDir"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        public global::BulkMediaDownloader.DownloadManager Downloads {
+            get {
+                return ((global::BulkMediaDownloader.DownloadManager)(this["Downloads"]));
+            }
+            set {
+                this["Downloads"] = value;
             }
         }
     }
