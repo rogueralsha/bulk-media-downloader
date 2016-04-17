@@ -48,6 +48,10 @@ namespace BulkMediaDownloader.ImageSources {
 
         public DeviantArtImageSource(Uri url)
             : base(url) {
+            // Deviantart is difficult. We retry a lot, and we wait a lot.
+            this.WebRequestWaitTime = 200;
+            this.WebRequestErrorAdditionalWaitTime = 20000; //Seriously, sometimes this isn't even enough
+            this.WebRequestRetryCount = 10;
 
             this.LoginURL = @"http://www.deviantart.com/";
             if (!root_name.IsMatch(url.ToString())) {
@@ -69,11 +73,9 @@ namespace BulkMediaDownloader.ImageSources {
             string album_name = address_matches[0].Groups[2].Value;
             return album_name;
         }
-        protected override List<Uri> GetPages(String page_contents) {
+        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
             SortedDictionary<int, Uri> candidates = new SortedDictionary<int, Uri>();
             Queue<Uri> to_check = new Queue<Uri>();
-
-            string test_url = url.ToString();
 
             MatchCollection mc = next_page_regex.Matches(WebUtility.HtmlDecode(page_contents));
             while(true)
@@ -88,6 +90,7 @@ namespace BulkMediaDownloader.ImageSources {
                     int offset = int.Parse(m.Groups[2].Value);
                     if (!candidates.ContainsValue(uri)&&!candidates.ContainsKey(offset))
                     {
+                        worker.ReportProgress(-1, "Found page: " + uri.ToString());
                         candidates.Add(offset, uri);
                         to_check.Enqueue(uri);
                     }
@@ -95,9 +98,8 @@ namespace BulkMediaDownloader.ImageSources {
 
                 if(to_check.Count > 0)
                 {
-                    System.Threading.Thread.Sleep(100);
                     Uri next_page = to_check.Dequeue();
-                    page_contents = GetPageContents(next_page);
+                    page_contents = GetPageContents(next_page, page_url);
                     mc = next_page_regex.Matches(WebUtility.HtmlDecode(page_contents));
                 } else
                 {
@@ -115,7 +117,7 @@ namespace BulkMediaDownloader.ImageSources {
 
         private List<String> already_checked = new List<string>();
 
-        protected override List<Uri> GetImagesFromPage(String page_contents) {
+        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
             List<Uri> output = new List<Uri>();
 
             MatchCollection mc = image_link_regex.Matches(page_contents);
@@ -130,15 +132,24 @@ namespace BulkMediaDownloader.ImageSources {
                     continue;
                 }
                 already_checked.Add(m.Value);
-                System.Threading.Thread.Sleep(100);
-                String image_page_contents = GetPageContents(new Uri(m.Value));
+                String image_page_contents = GetPageContents(new Uri(m.Value), page_url);
 
                 Match im = null;
                 String image_url = null;
                 if (download_url_regex.IsMatch(image_page_contents)) {
                     im = download_url_regex.Match(image_page_contents);
                     string download_link = WebUtility.HtmlDecode(im.Groups[1].Value);
-                    image_url = TheWebClient.GetRedirectURL(new Uri(download_link), m.Value).ToString();
+                    try {
+                        image_url = this.GetRedirectURL(new Uri(download_link),new Uri(m.Value)).ToString();
+                    } catch(WebException ex) {
+                        if((int)ex.Status>=400&&(int)ex.Status<500) {
+                            throw ex;
+                        } else {
+                            this.worker.ReportProgress(-1, "Error while attempting to get download link");
+                            this.worker.ReportProgress(-1, ex);
+                            continue;
+                        }
+                    }
                 } else if (full_image_regex.IsMatch(image_page_contents)) {
                     im = full_image_regex.Match(image_page_contents);
                     image_url = im.Groups[1].Value;
@@ -149,14 +160,16 @@ namespace BulkMediaDownloader.ImageSources {
                     // This page is a journal entry, no image to download!
                     continue;
                 } else {
-                    string temp = Path.GetTempFileName();
-                    System.IO.File.WriteAllLines(temp, image_page_contents.Split('\n'));
-                    throw new Exception("Image URL not found on " + m.Value);
+                    //string temp = Path.GetTempFileName();
+                    //System.IO.File.WriteAllLines(temp, image_page_contents.Split('\n'));
+                    this.worker.ReportProgress(-1,"Image URL not found on " + m.Value);
+                    continue;
                 }
 
                 Uri uri = new Uri(image_url);
                 if(!output.Contains(uri))
                 {
+                    worker.ReportProgress(-1, "Found image: " + uri.ToString());
                     output.Add(uri);
                 }
 

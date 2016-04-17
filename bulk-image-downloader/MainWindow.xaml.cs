@@ -188,15 +188,28 @@ namespace BulkMediaDownloader {
             if(show_message_box)
                 MessageBox.Show(e.Message);
 
-            logText.AppendText(e.Message + Environment.NewLine);
-            logText.AppendText(e.StackTrace + Environment.NewLine);
+            ShowExceptionHelper(e);
             Exception ex = e.InnerException;
             while (ex != null) {
-                logText.AppendText(ex.Message + Environment.NewLine);
-                logText.AppendText(ex.StackTrace + Environment.NewLine);
+                ShowExceptionHelper(e);
                 ex = ex.InnerException;
             }
+        }
 
+        private void ShowExceptionHelper(Exception e) {
+            logText.AppendText(e.Message + Environment.NewLine);
+            logText.AppendText(e.StackTrace + Environment.NewLine);
+            if(e is System.Net.WebException) {
+                System.Net.WebException we = (System.Net.WebException)e;
+                //logText.AppendText("Request URL:" + we.Response.ResponseUri.ToString() + Environment.NewLine);
+                //var encoding = ASCIIEncoding.ASCII;
+                //using (var reader = new System.IO.StreamReader(we.Response.GetResponseStream(), encoding)) {
+                //    string responseText = reader.ReadToEnd();
+                //    logText.AppendText("Response Content:" + Environment.NewLine);
+                //    logText.AppendText(responseText + Environment.NewLine);
+                //}
+
+            }
         }
 
         private void Worker_ProgressChanged(object sender, System.ComponentModel.ProgressChangedEventArgs e) {

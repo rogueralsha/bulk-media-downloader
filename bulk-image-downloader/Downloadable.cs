@@ -60,6 +60,19 @@ namespace BulkMediaDownloader {
                 URL = new Uri(value);
             }
         }
+        [XmlIgnore]
+        public Uri RefererURL { get; protected set; }
+        public String RefererURLString {
+            get {
+                if (RefererURL == null)
+                    return null;
+                else
+                    return RefererURL.ToString();
+            }
+            set {
+                RefererURL = new Uri(value);
+            }
+        } 
         //public Object Data { get; protected set; }
 
 
@@ -355,6 +368,9 @@ namespace BulkMediaDownloader {
                 client.DownloadDataCompleted +=  client_DownloadCompleted;
                 client.DownloadStringCompleted += client_DownloadCompleted;
 
+                if (this.RefererURL != null) {
+                    client.SetReferer(this.RefererURL);
+                }
                 switch (this.Type) {
                     case DownloadType.Binary:
                         client.DownloadDataAsync(this.URL);

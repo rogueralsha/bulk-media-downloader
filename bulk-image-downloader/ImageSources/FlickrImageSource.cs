@@ -14,8 +14,8 @@ namespace BulkMediaDownloader.ImageSources {
             : base(url) {
         }
 
-        protected override List<Uri> GetImagesFromPage(String page_contents) { return null; }
-        protected override List<Uri> GetPages(String page_contents) { return null; }
+        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) { return null; }
+        protected override List<Uri> GetPages(Uri page_url, String page_contents) { return null; }
 
         private int GetHighestPageNumber(string page_contents) {
             int highest_number = 0;

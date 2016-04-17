@@ -47,7 +47,7 @@ namespace BulkMediaDownloader.ImageSources {
             return total_pages;
         }
 
-        protected override List<Uri> GetPages(String page_contents) {
+        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
             List<Uri> output = new List<Uri>();
             bool new_max_found = true;
             int total_pages = 0;
@@ -81,7 +81,7 @@ namespace BulkMediaDownloader.ImageSources {
         }
 
 
-        protected override List<Uri> GetImagesFromPage(String page_contents) {
+        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
             List<Uri> output = new List<Uri>();
 
             MatchCollection image_matches = images_regex.Matches(page_contents);

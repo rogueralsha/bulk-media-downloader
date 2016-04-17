@@ -16,8 +16,8 @@ namespace BulkMediaDownloader.ImageSources {
 
         private static Regex images_regex = new Regex(@"['""](http.+?/wp-content/gallery/[^/]+/[^'""/]+)['""]");
 
-        protected override List<Uri> GetImagesFromPage(String page_contents) { return null; }
-        protected override List<Uri> GetPages(String page_contents) { return null; }
+        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) { return null; }
+        protected override List<Uri> GetPages(Uri page_url, String page_contents) { return null; }
 
         protected void ProcessImages() {
             string page_contents = GetPageContents(url);

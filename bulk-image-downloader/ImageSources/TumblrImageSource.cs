@@ -57,7 +57,7 @@ namespace BulkMediaDownloader.ImageSources {
             string album_name = address_matches[0].Groups[2].Value;
             return album_name;
         }
-        protected override List<Uri> GetPages(String page_contents) {
+        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
             List<Uri> candidates = new List<Uri>();
             Queue<Uri> to_check = new Queue<Uri>();
 
@@ -82,7 +82,6 @@ namespace BulkMediaDownloader.ImageSources {
 
                 if(to_check.Count > 0)
                 {
-                    System.Threading.Thread.Sleep(100);
                     Uri next_page = to_check.Dequeue();
                     page_contents = GetPageContents(next_page);
                     mc = next_page_regex.Matches(WebUtility.HtmlDecode(page_contents));
@@ -102,7 +101,7 @@ namespace BulkMediaDownloader.ImageSources {
 
         private List<String> already_checked = new List<string>();
 
-        protected override List<Uri> GetImagesFromPage(String page_contents) {
+        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
             List<Uri> output = new List<Uri>();
 
             MatchCollection mc = post_regex.Matches(page_contents);
@@ -124,7 +123,6 @@ namespace BulkMediaDownloader.ImageSources {
                     Console.Out.WriteLine();
 
 
-                System.Threading.Thread.Sleep(100);
                 String post_page_contents;
                 if (post_url.Contains("/rss"))
                     continue;

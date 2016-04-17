@@ -193,28 +193,6 @@ namespace BulkMediaDownloader {
 
         #endregion
 
-        //public static String GetWebPageContents(Uri url) {
-        //    Downloadable down = AddDownloadable(url, "", DownloadType.Text);
-
-        //    while (down.State < DownloadState.Complete) {
-        //        Thread.Sleep(500);
-        //    }
-
-        //    App.Current.Dispatcher.Invoke((Action)(() => {
-        //        lock (manager) {
-        //            manager.Remove(down);
-        //        }
-        //    }));
-
-
-        //    if (down.State == DownloadState.Complete) {
-        //        return down.Data.ToString();
-        //    } else {
-        //        return "";
-        //    }
-
-        //}
-
         public void ClearAllDownloads() {
             lock (this) {
                 for (int i = 0; i < this.Count; i++) {

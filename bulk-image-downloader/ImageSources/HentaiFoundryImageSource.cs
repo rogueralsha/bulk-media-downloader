@@ -34,6 +34,7 @@ namespace BulkMediaDownloader.ImageSources {
 
         public HentaiFoundryImageSource(Uri url)
             : base(url) {
+            this.WebRequestWaitTime = 200;
             this.LoginURL = @"http://www.hentai-foundry.com/";
 
             if (!address_regex.IsMatch(url.ToString())) {
@@ -78,7 +79,7 @@ namespace BulkMediaDownloader.ImageSources {
             return total_pages;
         }
 
-        protected override List<Uri> GetPages(String page_contents) {
+        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
             List<Uri> output = new List<Uri>();
             bool new_max_found = true;
             int total_pages = 0;
@@ -94,7 +95,6 @@ namespace BulkMediaDownloader.ImageSources {
                     total_pages = test;
                     new_max_found = true;
                     test_url = query_root + @"/page/" + total_pages;
-                    System.Threading.Thread.Sleep(100);
                     page_contents = GetPageContents(new Uri(test_url));
                 }
             }
@@ -113,7 +113,7 @@ namespace BulkMediaDownloader.ImageSources {
         }
 
 
-        protected override List<Uri> GetImagesFromPage(String page_contents) {
+        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
             List<Uri> output = new List<Uri>();
 
             List<Uri> image_pages = new List<Uri>();
@@ -143,7 +143,6 @@ namespace BulkMediaDownloader.ImageSources {
             {
                 IfPausedWaitUntilUnPaused();
 
-                System.Threading.Thread.Sleep(200);
 
                 string page_content = GetPageContents(image_page);
 
