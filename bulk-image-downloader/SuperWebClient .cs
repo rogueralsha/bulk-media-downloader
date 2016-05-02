@@ -10,6 +10,8 @@ namespace BulkMediaDownloader {
         private static readonly CookieContainer m_container = new CookieContainer();
         private WebRequest last_request = null;
 
+        public bool SimpleHeaders = false;
+
         public SuperWebClient() {
         }
 
@@ -54,7 +56,8 @@ namespace BulkMediaDownloader {
             try {
                 WebRequest request = base.GetWebRequest(address);
                 HttpWebRequest webRequest = request as HttpWebRequest;
-                referer_override = null;
+
+                if(!SimpleHeaders) {
 
                 // Mimicking the Chrome browser
                 webRequest.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8";
@@ -64,12 +67,14 @@ namespace BulkMediaDownloader {
                 webRequest.Headers.Add("Accept-Language", "en-US,en;q=0.8");
                 webRequest.Headers.Add("Upgrade-Insecure-Requests", "1");
 
-                if (referer_override != null) {
-                    webRequest.Referer = referer_override;
                 }
 
                 if (webRequest != null) {
                     webRequest.CookieContainer = m_container;
+                }
+
+                if (referer_override != null) {
+                    webRequest.Referer = referer_override;
                 }
 
                 last_request = request;
@@ -110,5 +115,11 @@ namespace BulkMediaDownloader {
 
             return new Uri(image_url);
         }
+
+        protected override void Dispose(bool disposing) {
+            this.last_request = null;
+            base.Dispose(disposing);
+        }
     }
+
 }

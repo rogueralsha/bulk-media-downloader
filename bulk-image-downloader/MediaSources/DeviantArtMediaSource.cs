@@ -10,8 +10,9 @@ using System.Text.RegularExpressions;
 using CefSharp;
 using CefSharp.OffScreen; 
 
-namespace BulkMediaDownloader.ImageSources {
-    public class DeviantArtImageSource : AImageSource {
+namespace BulkMediaDownloader.MediaSources
+{
+    public class DeviantArtMediaSource : AMediaSource {
         private readonly static Regex root_name = new Regex("http://(([^.]+)\\.deviantart\\.com)/gallery/");
         private readonly static Regex next_page_regex = new Regex("href=\"(/gallery/?.*?offset=(\\d+)[^\"]*)\"");
         private readonly static Regex image_link_regex = new Regex("http://[^/]+/art/([^\"#]+)");
@@ -46,10 +47,10 @@ namespace BulkMediaDownloader.ImageSources {
         }
 
 
-        public DeviantArtImageSource(Uri url)
+        public DeviantArtMediaSource(Uri url)
             : base(url) {
             // Deviantart is difficult. We retry a lot, and we wait a lot.
-            this.WebRequestWaitTime = 200;
+            this.WebRequestWaitTime = 2000;
             this.WebRequestErrorAdditionalWaitTime = 20000; //Seriously, sometimes this isn't even enough
             this.WebRequestRetryCount = 10;
 
@@ -73,9 +74,10 @@ namespace BulkMediaDownloader.ImageSources {
             string album_name = address_matches[0].Groups[2].Value;
             return album_name;
         }
-        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
+        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
             SortedDictionary<int, Uri> candidates = new SortedDictionary<int, Uri>();
             Queue<Uri> to_check = new Queue<Uri>();
+
 
             MatchCollection mc = next_page_regex.Matches(WebUtility.HtmlDecode(page_contents));
             while(true)
@@ -110,15 +112,19 @@ namespace BulkMediaDownloader.ImageSources {
 
 
             already_checked = new List<string>();
-            return candidates.Values.ToList<Uri>();
+
+            if (candidates.Count == 0)
+                return new HashSet<Uri>() { page_url };
+            else
+                return new HashSet<Uri>(candidates.Values.ToList<Uri>());
 
         }
 
 
         private List<String> already_checked = new List<string>();
 
-        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             MatchCollection mc = image_link_regex.Matches(page_contents);
             foreach(Match m in mc)
@@ -132,7 +138,8 @@ namespace BulkMediaDownloader.ImageSources {
                     continue;
                 }
                 already_checked.Add(m.Value);
-                String image_page_contents = GetPageContents(new Uri(m.Value), page_url);
+                Uri image_page_url = new Uri(m.Value);
+                String image_page_contents = GetPageContents(image_page_url, page_url);
 
                 Match im = null;
                 String image_url = null;
@@ -167,11 +174,8 @@ namespace BulkMediaDownloader.ImageSources {
                 }
 
                 Uri uri = new Uri(image_url);
-                if(!output.Contains(uri))
-                {
-                    worker.ReportProgress(-1, "Found image: " + uri.ToString());
-                    output.Add(uri);
-                }
+                worker.ReportProgress(-1, "Found image: " + uri.ToString());
+                output.Add(new MediaSourceResult(uri, image_page_url, this.url));
 
             }
 
@@ -179,6 +183,7 @@ namespace BulkMediaDownloader.ImageSources {
             return output;
             
         }
+
 
 
     }

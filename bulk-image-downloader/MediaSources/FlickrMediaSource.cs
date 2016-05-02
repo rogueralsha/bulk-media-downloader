@@ -5,17 +5,18 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace BulkMediaDownloader.ImageSources {
-    public class FlickrImageSource: AImageSource {
+namespace BulkMediaDownloader.MediaSources
+{
+    public class FlickrMediaSource: AMediaSource {
         private static Regex PagesRegex = new Regex(@"href=""(/photos/[^/]+/page(\d+/))""");
         private static Regex ImageRegex = new Regex(@"""url"":""(https:\\/\\/[^\.]+.staticflickr.com\\/\d+\\/+\d+\\/((\d+)_[a-z0-9]+_([a-z]).([a-z]+)))""");
 
-        public FlickrImageSource(Uri url)
+        public FlickrMediaSource(Uri url)
             : base(url) {
         }
 
-        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) { return null; }
-        protected override List<Uri> GetPages(Uri page_url, String page_contents) { return null; }
+        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) { return null; }
+        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) { return null; }
 
         private int GetHighestPageNumber(string page_contents) {
             int highest_number = 0;

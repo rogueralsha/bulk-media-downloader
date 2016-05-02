@@ -8,8 +8,9 @@ using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace BulkMediaDownloader.ImageSources {
-    public class GelbooruImageSource : AImageSource {
+namespace BulkMediaDownloader.MediaSources
+{
+    public class GelbooruMediaSource : AMediaSource {
 
         private static Regex address_regex = new Regex(@"((.+)/post/list/[^/]+/?)(\d+)");
         private static Regex page_nav_regex = new Regex(@"/post/list/[^/]+/(\d+)");
@@ -19,7 +20,7 @@ namespace BulkMediaDownloader.ImageSources {
         private string address_root;
         private string query_root;
 
-        public GelbooruImageSource(Uri url)
+        public GelbooruMediaSource(Uri url)
             : base(url) {
 
             if (!address_regex.IsMatch(url.ToString())) {
@@ -47,8 +48,8 @@ namespace BulkMediaDownloader.ImageSources {
             return total_pages;
         }
 
-        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
+            HashSet<Uri> output = new HashSet<Uri>();
             bool new_max_found = true;
             int total_pages = 0;
 
@@ -81,8 +82,8 @@ namespace BulkMediaDownloader.ImageSources {
         }
 
 
-        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             MatchCollection image_matches = images_regex.Matches(page_contents);
             foreach (Match image_match in image_matches) {
@@ -91,7 +92,9 @@ namespace BulkMediaDownloader.ImageSources {
                 GroupCollection groups = image_match.Groups;
                 Group group = groups[0];
 
-                string page_content = GetPageContents(new Uri(address_root + image_match.Groups[1].Value));
+                Uri sub_url = new Uri(address_root + image_match.Groups[1].Value);
+
+                string page_content = GetPageContents(sub_url);
 
                 if (image_regex.IsMatch(page_content)) {
                     String value = image_regex.Match(page_content).Value;
@@ -101,7 +104,7 @@ namespace BulkMediaDownloader.ImageSources {
                     }
                     
                     //http://rule34-data-002.paheal.net/
-                    output.Add(new Uri(value));
+                    output.Add(new MediaSourceResult(new Uri(value), sub_url, this.url));
                 }
             }
             return output;

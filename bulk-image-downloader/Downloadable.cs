@@ -35,17 +35,18 @@ namespace BulkMediaDownloader {
         [XmlIgnore]
         public string FileName {
             get {
-                StringBuilder path =  new StringBuilder(Uri.UnescapeDataString(this.URL.ToString()));
-                foreach(char c in System.IO.Path.GetInvalidPathChars())
-                {
+                UriBuilder builder = new UriBuilder(this.URL);
+                builder.Query = "";
+
+                StringBuilder path = new StringBuilder(Uri.UnescapeDataString(builder.Uri.ToString()));
+                foreach (char c in System.IO.Path.GetInvalidPathChars()) {
                     path.Replace(c, '_');
                 }
                 path.Replace(':', '_');
                 string file = Path.GetFileName(path.ToString());
-                if(file.Length > 255)
-                {
+                if (file.Length > 255) {
                     int length = 255 - Path.GetExtension(file).Length;
-                    file =  Path.GetFileNameWithoutExtension(file).Substring(0,length) + Path.GetExtension(file);
+                    file = Path.GetFileNameWithoutExtension(file).Substring(0, length) + Path.GetExtension(file);
                 }
                 return file;
             }
@@ -72,14 +73,35 @@ namespace BulkMediaDownloader {
             set {
                 RefererURL = new Uri(value);
             }
-        } 
+        }
         //public Object Data { get; protected set; }
+
+        public bool SimpleHeaders { get; set; }
 
 
         private DateTime download_start_time;
 
-        public String DownloadDir { get;  set; }
-        public String Source { get; set; }
+        public String DownloadDir { get; set; }
+        [XmlIgnore]
+        public Uri Site { get; set; }
+        public String SiteString {
+            get {
+                return Site.ToString();
+            }
+            set {
+                Site = new Uri(value);
+            }
+        }
+
+        public String Source {
+            get {
+                return Site.ToString();
+            }
+            set {
+                Site = new Uri(value);
+            }
+        }
+
 
         [XmlIgnore]
         public int StartDelay = 1000;
@@ -91,7 +113,7 @@ namespace BulkMediaDownloader {
                 return _State;
             }
 
-             set {
+            set {
                 _State = value;
                 NotifyPropertyChanged("State");
                 NotifyPropertyChanged("StateText");
@@ -165,7 +187,7 @@ namespace BulkMediaDownloader {
         [XmlIgnore]
         public int Progress {
             get {
-                if(State== DownloadState.Complete|| State== DownloadState.Skipped) {
+                if (State == DownloadState.Complete || State == DownloadState.Skipped) {
                     return 100;
                 }
 
@@ -242,93 +264,32 @@ namespace BulkMediaDownloader {
         #endregion
 
         #region Constructors
-        public Downloadable() { }
-        public Downloadable(Uri url, string download_dir) {
+        public Downloadable() {
+            SimpleHeaders = false;
+        }
+        public Downloadable(Uri url, Uri referer, string download_dir) : this(url, download_dir) {
+            this.RefererURL = referer;
+        }
+        public Downloadable(Uri url, string download_dir): this() {
             this.URL = url;
             this.DownloadDir = download_dir;
             download_thread = new Thread(DownloadThread);
             MaxAttempts = 5;
         }
 
-        public Downloadable(XmlElement ele) {
-            try {
-                LoadFromXML(ele);
-
-                download_thread = new Thread(DownloadThread);
-                MaxAttempts = 5;
-            } catch {
-                this.State = DownloadState.Error;
-            }
-        }
-#endregion
-
-        #region XML Read/write
-        public XmlElement CreateElement(XmlDocument doc) {
-            XmlElement ele = doc.CreateElement("downloadable");
-
-            XmlElement field = doc.CreateElement("url");
-            field.InnerText = URL.ToString();
-            ele.AppendChild(field);
-
-            field = doc.CreateElement("download_dir");
-            field.InnerText = this.DownloadDir;
-            ele.AppendChild(field);
-
-            field = doc.CreateElement("state");
-            field.InnerText = this.State.ToString();
-            ele.AppendChild(field);
-
-            field = doc.CreateElement("type");
-            field.InnerText = this.Type.ToString();
-            ele.AppendChild(field);
-
-            return ele;
-        }
-
-        private void LoadFromXML(XmlElement ele) {
-            if(ele.GetElementsByTagName("url").Count>0) {
-                this.URL= new Uri(ele.GetElementsByTagName("url")[0].InnerText);
-            } else {
-                throw new Exception("No URL specified");
-            }
-
-            if (ele.GetElementsByTagName("download_dir").Count > 0) {
-                this.DownloadDir = ele.GetElementsByTagName("download_dir")[0].InnerText;
-            } else {
-                throw new Exception("No download dir specified");
-            }
-
-            if (ele.GetElementsByTagName("state").Count > 0) {
-                Enum.TryParse<DownloadState>(ele.GetElementsByTagName("state")[0].InnerText, out this._State);
-            } else {
-                this.State = DownloadState.Pending;
-            }
-
-            if (ele.GetElementsByTagName("type").Count > 0) {
-                Enum.TryParse<DownloadType>(ele.GetElementsByTagName("type")[0].InnerText, out this.Type);
-            } else {
-                this.State = DownloadState.Pending;
-            }
-
-            if (this.State == DownloadState.Downloading) {
-                this.State = DownloadState.Pending;
-            }
-        }
-
 
         #endregion
+
 
         #region Download controls
         public void Start() {
             this.State = DownloadState.Downloading;
             try {
-                if(this.download_thread==null||this.download_thread.ThreadState== ThreadState.Stopped)
-                {
+                if (this.download_thread == null || this.download_thread.ThreadState == ThreadState.Stopped) {
                     this.download_thread = new Thread(DownloadThread);
                 }
                 this.download_thread.Start();
-            } catch (ThreadStartException ex)
-            {
+            } catch (ThreadStartException ex) {
                 this.download_thread = new Thread(DownloadThread);
                 this.download_thread.Start();
             }
@@ -336,12 +297,33 @@ namespace BulkMediaDownloader {
 
         public void Reset() {
             this.State = DownloadState.Pending;
+            if (this.client != null && this.client.IsBusy) {
+                try {
+                    this.client.CancelAsync();
+                } finally {
+                    try {
+                        this.client.Dispose();
+                    } catch (Exception e) {
+                    } finally {
+                        this.client = null;
+                    }
+                }
+            }
         }
 
         public void Pause() {
             this.State = DownloadState.Paused;
             if (this.client != null && this.client.IsBusy) {
-                this.client.CancelAsync();
+                try {
+                    this.client.CancelAsync();
+                } finally {
+                    try {
+                        this.client.Dispose();
+                    } catch (Exception e) {
+                    } finally {
+                        this.client = null;
+                    }
+                }
             }
         }
 
@@ -364,13 +346,16 @@ namespace BulkMediaDownloader {
                 System.Threading.Thread.Sleep(this.StartDelay);
 
                 client = new SuperWebClient();
-                client.DownloadProgressChanged += wc_DownloadProgressChanged;
-                client.DownloadDataCompleted +=  client_DownloadCompleted;
-                client.DownloadStringCompleted += client_DownloadCompleted;
+                client.SimpleHeaders = this.SimpleHeaders;
 
                 if (this.RefererURL != null) {
                     client.SetReferer(this.RefererURL);
                 }
+
+                client.DownloadProgressChanged += wc_DownloadProgressChanged;
+                client.DownloadDataCompleted += client_DownloadCompleted;
+                client.DownloadStringCompleted += client_DownloadCompleted;
+
                 switch (this.Type) {
                     case DownloadType.Binary:
                         client.DownloadDataAsync(this.URL);
@@ -443,7 +428,6 @@ namespace BulkMediaDownloader {
                                 break;
                         }
                     }
-
                     this.State = DownloadState.Complete;
                 } catch (Exception ex) {
                     this.Exception = ex;
@@ -508,17 +492,7 @@ namespace BulkMediaDownloader {
             }
         }
 
-        protected static WebClient PrepareClient() {
-            WebClient wc = new WebClient();
 
-            //if (!string.IsNullOrEmpty(Properties.Settings.Default.SOCKS_Proxy_Host))
-            //{
-            //    wc.Proxy = new WebProxy(Properties.Settings.Default.SOCKS_Proxy_Host, Properties.Settings.Default.SOCKS_Proxy_Port);
-            //}
-
-            return wc;
-
-        }
         #endregion
 
         #region INotify Implementation

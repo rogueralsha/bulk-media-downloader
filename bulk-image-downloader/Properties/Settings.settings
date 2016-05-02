@@ -17,5 +17,72 @@
     <Setting Name="Downloads" Type="BulkMediaDownloader.DownloadManager" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="MediaExtensions" Type="System.Collections.Specialized.StringCollection" Scope="User">
+      <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
+&lt;ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"&gt;
+  &lt;string&gt;jpg&lt;/string&gt;
+  &lt;string&gt;jpeg&lt;/string&gt;
+  &lt;string&gt;gif&lt;/string&gt;
+  &lt;string&gt;png&lt;/string&gt;
+  &lt;string&gt;webm&lt;/string&gt;
+  &lt;string&gt;3gp&lt;/string&gt;
+  &lt;string&gt;aa&lt;/string&gt;
+  &lt;string&gt;aac&lt;/string&gt;
+  &lt;string&gt;aax&lt;/string&gt;
+  &lt;string&gt;act&lt;/string&gt;
+  &lt;string&gt;ai&lt;/string&gt;
+  &lt;string&gt;aiff&lt;/string&gt;
+  &lt;string&gt;amr&lt;/string&gt;
+  &lt;string&gt;ape&lt;/string&gt;
+  &lt;string&gt;asf&lt;/string&gt;
+  &lt;string&gt;au&lt;/string&gt;
+  &lt;string&gt;avi&lt;/string&gt;
+  &lt;string&gt;bmp&lt;/string&gt;
+  &lt;string&gt;exif&lt;/string&gt;
+  &lt;string&gt;f4a&lt;/string&gt;
+  &lt;string&gt;f4b&lt;/string&gt;
+  &lt;string&gt;f4p&lt;/string&gt;
+  &lt;string&gt;f4v&lt;/string&gt;
+  &lt;string&gt;flac&lt;/string&gt;
+  &lt;string&gt;flv&lt;/string&gt;
+  &lt;string&gt;gifv&lt;/string&gt;
+  &lt;string&gt;gsm&lt;/string&gt;
+  &lt;string&gt;m2v&lt;/string&gt;
+  &lt;string&gt;m4p&lt;/string&gt;
+  &lt;string&gt;m4v&lt;/string&gt;
+  &lt;string&gt;mkv&lt;/string&gt;
+  &lt;string&gt;mng&lt;/string&gt;
+  &lt;string&gt;mov&lt;/string&gt;
+  &lt;string&gt;mp2&lt;/string&gt;
+  &lt;string&gt;mp3&lt;/string&gt;
+  &lt;string&gt;mp4&lt;/string&gt;
+  &lt;string&gt;mpe&lt;/string&gt;
+  &lt;string&gt;mpeg&lt;/string&gt;
+  &lt;string&gt;mpg&lt;/string&gt;
+  &lt;string&gt;mpv&lt;/string&gt;
+  &lt;string&gt;oga&lt;/string&gt;
+  &lt;string&gt;ogg&lt;/string&gt;
+  &lt;string&gt;ogv&lt;/string&gt;
+  &lt;string&gt;opus&lt;/string&gt;
+  &lt;string&gt;pbm&lt;/string&gt;
+  &lt;string&gt;pgm&lt;/string&gt;
+  &lt;string&gt;pnm&lt;/string&gt;
+  &lt;string&gt;ppm&lt;/string&gt;
+  &lt;string&gt;psd&lt;/string&gt;
+  &lt;string&gt;qt&lt;/string&gt;
+  &lt;string&gt;ra&lt;/string&gt;
+  &lt;string&gt;raw&lt;/string&gt;
+  &lt;string&gt;rm&lt;/string&gt;
+  &lt;string&gt;rmvb&lt;/string&gt;
+  &lt;string&gt;svg&lt;/string&gt;
+  &lt;string&gt;tiff&lt;/string&gt;
+  &lt;string&gt;vob&lt;/string&gt;
+  &lt;string&gt;vox&lt;/string&gt;
+  &lt;string&gt;wav&lt;/string&gt;
+  &lt;string&gt;webp&lt;/string&gt;
+  &lt;string&gt;wma&lt;/string&gt;
+  &lt;string&gt;wmv&lt;/string&gt;
+&lt;/ArrayOfString&gt;</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

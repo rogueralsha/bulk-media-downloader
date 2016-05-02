@@ -41,6 +41,10 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="HtmlAgilityPack, Version=1.4.9.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
+      <HintPath>..\packages\HtmlAgilityPack.1.4.9\lib\Net45\HtmlAgilityPack.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Microsoft.WindowsAPICodePack">
       <HintPath>..\packages\winapicp.1.1\lib\Microsoft.WindowsAPICodePack.dll</HintPath>
     </Reference>
@@ -55,6 +59,10 @@
     </Reference>
     <Reference Include="Microsoft.WindowsAPICodePack.ShellExtensions">
       <HintPath>..\packages\winapicp.1.1\lib\Microsoft.WindowsAPICodePack.ShellExtensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -80,14 +88,24 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="ImageSources\TumblrImageSource.cs" />
+    <Compile Include="MediaSources\PixivMediaSource.cs" />
+    <Compile Include="MediaSources\ASitemapMediaSource.cs" />
+    <Compile Include="MediaSources\MediaSourceResult.cs" />
+    <Compile Include="MediaSources\MediaSourceResults.cs" />
+    <Compile Include="MediaSources\SitemapMediaSource.cs" />
+    <Compile Include="MediaSources\GfycatMediaSource.cs" />
+    <Compile Include="MediaSources\ImgurMediaSource.cs" />
+    <Compile Include="MediaSources\BloggerMediaSource.cs" />
+    <Compile Include="MediaSources\ArtstationMediaSource.cs" />
+    <Compile Include="MediaSources\TumblrMediaSource.cs" />
     <Compile Include="SuperWebClient .cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="ImageSources\HentaiFoundryImageSource.cs" />
+    <Compile Include="MediaSources\HentaiFoundryMediaSource.cs" />
     <Compile Include="MultiLineInput.xaml.cs">
       <DependentUpon>MultiLineInput.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UniqueQueue.cs" />
     <Compile Include="UrlToProcess.cs" />
     <Compile Include="WebSiteLoginWindow.xaml.cs">
       <DependentUpon>WebSiteLoginWindow.xaml</DependentUpon>
@@ -102,15 +120,15 @@
     </Compile>
     <Compile Include="Downloadable.cs" />
     <Compile Include="DownloadManager.cs" />
-    <Compile Include="ImageSources\4ChanImageSource.cs" />
-    <Compile Include="ImageSources\AImageSource.cs" />
-    <Compile Include="ImageSources\FlickrImageSource.cs" />
-    <Compile Include="ImageSources\JuiceBoxConfigFile.cs" />
-    <Compile Include="ImageSources\JuiceBoxImageSource.cs" />
-    <Compile Include="ImageSources\NextGENImageSource.cs" />
-    <Compile Include="ImageSources\GelbooruImageSource.cs" />
-    <Compile Include="ImageSources\DeviantArtImageSource.cs" />
-    <Compile Include="ImageSources\ShimmieImageSource.cs" />
+    <Compile Include="MediaSources\4ChanMediaSource.cs" />
+    <Compile Include="MediaSources\AMediaSource.cs" />
+    <Compile Include="MediaSources\FlickrMediaSource.cs" />
+    <Compile Include="MediaSources\JuiceBoxConfigFile.cs" />
+    <Compile Include="MediaSources\JuiceBoxMediaSource.cs" />
+    <Compile Include="MediaSources\NextGENMediaSource.cs" />
+    <Compile Include="MediaSources\GelbooruMediaSource.cs" />
+    <Compile Include="MediaSources\DeviantArtMediaSource.cs" />
+    <Compile Include="MediaSources\ShimmieMediaSource.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>

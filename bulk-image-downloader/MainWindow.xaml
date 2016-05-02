@@ -12,7 +12,7 @@
             <RowDefinition Height="140"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="5" />
-            <RowDefinition Height="*" MinHeight="30"/>
+            <RowDefinition Height="Auto" MinHeight="30"/>
             <RowDefinition Height="30"/>
         </Grid.RowDefinitions>
 
@@ -20,13 +20,17 @@
             <RibbonTab Header="Downloads">
                 <RibbonGroup>
                     <RibbonMenuButton LargeImageSource="images/add.png" Label="Add">
-                        <RibbonMenuItem Header="Shimmie" x:Name="addShimmie" Tag="shimmie"  Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Artstation" x:Name="addArtstation" Tag="artstation" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Blogger" x:Name="addBlogger" Tag="blogger" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="DeviantArt" x:Name="addDeviantArt" Tag="deviantart" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Tumblr" x:Name="addTumblr" Tag="tumblr" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Flickr" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Flickr" IsEnabled="False" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Hentai Foundry" x:Name="addHentaiFoundry" Tag="hentaifoundry" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="NextGEN Gallery (Wordpress Plugin)" x:Name="addNextGEN" Tag="nextgen" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="JuiceBox" x:Name="addJuiceBox" Tag="juicebox" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="JuiceBox" IsEnabled="False" x:Name="addJuiceBox" Tag="juicebox" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="NextGEN Gallery (Wordpress Plugin)" IsEnabled="False" x:Name="addNextGEN" Tag="nextgen" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Pixiv" x:Name="addPixiv" Tag="pixiv" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Shimmie" x:Name="addShimmie" Tag="shimmie"  Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Sitemap XML" x:Name="addSitemap" Tag="sitemap"  Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Tumblr" x:Name="addTumblr" Tag="tumblr" Click="addDownload_Click"/>
                     </RibbonMenuButton>
                 </RibbonGroup>
                 <RibbonGroup Header="Control">
@@ -129,6 +133,15 @@
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
+            <ListView.GroupStyle>
+                <GroupStyle>
+                <GroupStyle.HeaderTemplate>
+                    <DataTemplate>
+                        <TextBlock FontWeight="Bold" FontSize="14" Text="{Binding Site}"/>
+                    </DataTemplate>
+                </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+            </ListView.GroupStyle>
             <ListView.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Copy Address" Name="contextMenuCopy" Click="contextMenuCopy_Click"/>
@@ -138,10 +151,21 @@
         
         <GridSplitter Grid.Row="2" Grid.Column="0" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
         <Expander Grid.Row="3" Grid.Column="0" Header="Process Output" ExpandDirection="Down" IsExpanded="True">
-            <TextBox x:Name="logText"    IsReadOnly="True" FontSize="9.333" Text="" TextWrapping="Wrap"
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="25"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="logText"  Height="200"  IsReadOnly="True" FontSize="9.333" Text="" TextWrapping="Wrap"
                  TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="Aliased" 
                  FontFamily="Lucida Sans Unicode" ScrollViewer.VerticalScrollBarVisibility="Visible" 
-                     ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto" Grid.Column="0"/>
+                <Button Grid.Column="1" Content="Clear" Name="clearOutputButton" Click="clearOutputButton_Click">
+                    <Button.LayoutTransform>
+                        <RotateTransform Angle="90" />
+                    </Button.LayoutTransform>
+                </Button>
+            </Grid>
         </Expander>
         <StatusBar Grid.Row="4"  >
             <StatusBarItem x:Name="statusLabel">

@@ -92,6 +92,8 @@ namespace BulkMediaDownloader {
             }
         }
         public DownloadManager() {
+
+
             supervisor_thread = new Thread(Supervise);
             this.CollectionChanged += DownloadManager_CollectionChanged;
         }
@@ -152,23 +154,33 @@ namespace BulkMediaDownloader {
             }
         }
 
-        public void DownloadImage(Uri url, string download_dir, string source) {
-            AddDownloadable(url, download_dir, source, DownloadType.Binary);
-        }
-
-        public Downloadable AddDownloadable(Uri url, string download_dir, string source, DownloadType type) {
-            Downloadable down = new Downloadable(url, download_dir);
-            down.Type = type;
-            down.Source = source;
+        public void DownloadMedia(MediaSources.MediaSourceResult media, string download_dir) {
+            Downloadable down = new Downloadable(media.URL, media.Referrer, download_dir);
+            down.Type = DownloadType.Binary;
+            down.Site = media.Site;
+            down.SimpleHeaders = media.SimpleHeaders;
             down.PropertyChanged += this.Down_PropertyChanged;
             App.Current.Dispatcher.Invoke((Action)(() => {
-                lock (this) {
+                lock (this)
+                {
                     this.Add(down);
                 }
             }));
-
-            return down;
         }
+
+        //public Downloadable AddDownloadable(Uri url, string download_dir, string source, DownloadType type) {
+        //    Downloadable down = new Downloadable(url, download_dir);
+        //    down.Type = type;
+        //    down.Source = source;
+        //    down.PropertyChanged += this.Down_PropertyChanged;
+        //    App.Current.Dispatcher.Invoke((Action)(() => {
+        //        lock (this) {
+        //            this.Add(down);
+        //        }
+        //    }));
+
+        //    return down;
+        //}
 
         private void Down_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {

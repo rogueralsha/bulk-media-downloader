@@ -14,7 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.WindowsAPICodePack.Dialogs;
-using BulkMediaDownloader.ImageSources;
+using BulkMediaDownloader.MediaSources;
 
 namespace BulkMediaDownloader {
     /// <summary>
@@ -24,7 +24,7 @@ namespace BulkMediaDownloader {
 
         DownloadManager manager {
             get {
-                if(Properties.Settings.Default.Downloads==null) {
+                if (Properties.Settings.Default.Downloads == null) {
                     DownloadManager dm = new DownloadManager();
                     Properties.Settings.Default.Downloads = dm;
                     dm.SaveAll();
@@ -80,112 +80,126 @@ namespace BulkMediaDownloader {
 
         private bool processing = false;
         private void startProcess() {
-            if (urls.Count == 0)
-                return;
+            while (urls.Count > 0) {
+                UrlToProcess url = urls.Dequeue();
 
-            UrlToProcess url = urls.Dequeue();
+                AMediaSource source = null;
 
-            AImageSource source = null;
+                statusLabel.Content = "Loading images from " + url.url.ToString();
+                try {
+                    if (String.IsNullOrWhiteSpace(Properties.Settings.Default.LastDownloadDir) ||
+                        !System.IO.Directory.Exists(Properties.Settings.Default.LastDownloadDir)) {
+                        if (!setDownloadFolder())
+                            return;
+                    }
 
-            statusLabel.Content = "Loading images from " + url.url.ToString();
-            try {
-                if (String.IsNullOrWhiteSpace(Properties.Settings.Default.LastDownloadDir)||
-                    !System.IO.Directory.Exists(Properties.Settings.Default.LastDownloadDir)) {
-                    if (!setDownloadFolder())
-                        return;
-                }
+                    string download_dir = Properties.Settings.Default.LastDownloadDir; ;
 
-                string download_dir = Properties.Settings.Default.LastDownloadDir; ;
-
-                switch (url.image_source_name) {
-                    case "shimmie":
-                        source = new ShimmieImageSource(url.url);
-                        break;
-                    case "flickr":
-                        source = new FlickrImageSource(url.url);
-                        break;
-                    //case "juicebox":
+                    switch (url.image_source_name) {
+                        case "shimmie":
+                            source = new ShimmieMediaSource(url.url);
+                            break;
+                        case "flickr":
+                            source = new FlickrMediaSource(url.url);
+                            break;
+                        //case "juicebox":
                         //source = new JuiceBoxImageSource(url.url);
                         //break;
-                    case "nextgen":
-                        source = new NextGENImageSource(url.url);
-                        break;
-                    case "deviantart":
-                        source = new DeviantArtImageSource(url.url);
-                        break;
-                    case "tumblr":
-                        source = new TumblrImageSource(url.url);
-                        break;
-                    case "hentaifoundry":
-                        source = new HentaiFoundryImageSource(url.url);
-                        break;
-                    default:
-                        throw new Exception("URL Type not supported");
-                }
-
-                source.worker.ProgressChanged += Worker_ProgressChanged;
-
-                string album_folder = source.getFolderNameFromURL(url.url);
-                if (!string.IsNullOrWhiteSpace(album_folder)) {
-                    download_dir = System.IO.Path.Combine(download_dir, album_folder);
-                    if (!System.IO.Directory.Exists(download_dir)) {
-                        System.IO.Directory.CreateDirectory(download_dir);
+                        case "nextgen":
+                            source = new NextGENMediaSource(url.url);
+                            break;
+                        case "deviantart":
+                            source = new DeviantArtMediaSource(url.url);
+                            break;
+                        case "tumblr":
+                            source = new TumblrMediaSource(url.url);
+                            break;
+                        case "hentaifoundry":
+                            source = new HentaiFoundryMediaSource(url.url);
+                            break;
+                        case "blogger":
+                            source = new BloggerMediaSource(url.url);
+                            break;
+                        case "artstation":
+                            source = new ArtstationMediaSource(url.url);
+                            break;
+                        case "sitemap":
+                            source = new SitemapMediaSource(url.url);
+                            break;
+                        case "pixiv":
+                            source = new PixivMediaSource(url.url);
+                            break;
+                        default:
+                            throw new Exception("URL Type not supported");
                     }
-                }
 
-                logText.AppendText("Using download location " + download_dir + Environment.NewLine);
+                    source.worker.ProgressChanged += Worker_ProgressChanged;
 
-                if (source.RequiresLogin) {
-                    WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
-                    loginWindow.Owner = this;
-                    if(!loginWindow.ShowDialog().Value) {
-                        return;
+
+                    if (source.RequiresLogin) {
+                        WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
+                        loginWindow.Owner = this;
+                        if (!loginWindow.ShowDialog().Value) {
+                            return;
+                        }
+                        AMediaSource.SetCookies(loginWindow.FoundCookies);
                     }
-                    AImageSource.SetCookies(loginWindow.FoundCookies);
-                }
 
-                source.worker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(delegate (object sender, System.ComponentModel.RunWorkerCompletedEventArgs e) {
-                    if (e.Error != null) {
-                        ShowException(e.Error);
+                    string album_folder = source.getFolderNameFromURL(url.url);
+                    if (!string.IsNullOrWhiteSpace(album_folder)) {
+                        download_dir = System.IO.Path.Combine(download_dir, album_folder);
+                        if (!System.IO.Directory.Exists(download_dir)) {
+                            System.IO.Directory.CreateDirectory(download_dir);
+                        }
+                    }
+
+                    logText.AppendText("Using download location " + download_dir + Environment.NewLine);
+
+
+                    source.worker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(delegate (object sender, System.ComponentModel.RunWorkerCompletedEventArgs e) {
+                        if (e.Error != null) {
+                            ShowException(e.Error);
+                            if (urls.Count > 0) {
+                                startProcess();
+                                return;
+                            }
+                            processing = false;
+                            EnableInterface();
+                            return;
+                        }
+
+                        HashSet<MediaSourceResult> images = (HashSet<MediaSourceResult>)e.Result;
+                        foreach (MediaSourceResult media in images) {
+                            manager.DownloadMedia(media, download_dir);
+                        }
+                        manager.SaveAll();
+
                         if (urls.Count > 0) {
                             startProcess();
                             return;
                         }
-                        processing = false;
+
+                        statusLabel.Content = String.Empty;
+
                         EnableInterface();
-                        return;
-                    }
+                        processing = false;
+                    });
 
-                    Dictionary<Uri, List<Uri>> images = (Dictionary<Uri, List<Uri>>)e.Result;
-                    foreach (Uri page in images.Keys) {
-                        foreach (Uri image in images[page]) {
-                            manager.DownloadImage(image, download_dir, page.ToString());
-                        }
-                    }
-                    manager.SaveAll();
+                    source.Start();
+                    processing = true;
 
-                    if (urls.Count > 0) {
-                        startProcess();
-                        return;
-                    }
+                    break;
 
-                    statusLabel.Content = String.Empty;
-
-                    EnableInterface();
-                    processing = false;
-                });
-
-                source.Start();
-                processing = true;
-            } catch (Exception ex) {
-                ShowException(ex);
+                } catch (Exception ex) {
+                    ShowException(ex);
+                }
             }
 
 
         }
 
         private void ShowException(Exception e, bool show_message_box = true) {
-            if(show_message_box)
+            if (show_message_box)
                 MessageBox.Show(e.Message);
 
             ShowExceptionHelper(e);
@@ -199,7 +213,7 @@ namespace BulkMediaDownloader {
         private void ShowExceptionHelper(Exception e) {
             logText.AppendText(e.Message + Environment.NewLine);
             logText.AppendText(e.StackTrace + Environment.NewLine);
-            if(e is System.Net.WebException) {
+            if (e is System.Net.WebException) {
                 System.Net.WebException we = (System.Net.WebException)e;
                 //logText.AppendText("Request URL:" + we.Response.ResponseUri.ToString() + Environment.NewLine);
                 //var encoding = ASCIIEncoding.ASCII;
@@ -213,8 +227,8 @@ namespace BulkMediaDownloader {
         }
 
         private void Worker_ProgressChanged(object sender, System.ComponentModel.ProgressChangedEventArgs e) {
-            if(e.UserState!= null) {
-                if(e.UserState is Exception) {
+            if (e.UserState != null) {
+                if (e.UserState is Exception) {
                     ShowException((Exception)e.UserState, false);
                 } else {
                     if (!String.IsNullOrWhiteSpace(e.UserState.ToString())) {
@@ -306,7 +320,7 @@ namespace BulkMediaDownloader {
                 down.Pause();
                 to_remove.Add(down);
             }
-            foreach(Downloadable down in to_remove) {
+            foreach (Downloadable down in to_remove) {
                 manager.Remove(down);
             }
             manager.SaveAll();
@@ -348,11 +362,16 @@ namespace BulkMediaDownloader {
 
         private void contextMenuCopy_Click(object sender, RoutedEventArgs e) {
             StringBuilder text = new StringBuilder();
-            foreach(Downloadable item in lstDownloadables.SelectedItems) {
+            foreach (Downloadable item in lstDownloadables.SelectedItems) {
                 text.AppendLine(item.URL.ToString());
             }
             if (text.Length > 0)
                 Clipboard.SetText(text.ToString());
+        }
+
+
+        private void clearOutputButton_Click(object sender, RoutedEventArgs e) {
+            logText.Clear();
         }
     }
 }

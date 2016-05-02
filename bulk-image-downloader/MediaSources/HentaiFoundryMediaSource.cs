@@ -8,8 +8,9 @@ using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace BulkMediaDownloader.ImageSources {
-    public class HentaiFoundryImageSource : AImageSource {
+namespace BulkMediaDownloader.MediaSources
+{
+    public class HentaiFoundryMediaSource : AMediaSource {
         //http://www.hentai-foundry.com/pictures/user/GENSHI
         private static Regex address_regex = new Regex(@"((.+)/pictures/user/([^/]+))");
         private static Regex page_nav_regex = new Regex(@"/pictures/user/[^/]+/page/(\d+)");
@@ -32,7 +33,7 @@ namespace BulkMediaDownloader.ImageSources {
             }
         }
 
-        public HentaiFoundryImageSource(Uri url)
+        public HentaiFoundryMediaSource(Uri url)
             : base(url) {
             this.WebRequestWaitTime = 200;
             this.LoginURL = @"http://www.hentai-foundry.com/";
@@ -79,8 +80,8 @@ namespace BulkMediaDownloader.ImageSources {
             return total_pages;
         }
 
-        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
+            HashSet<Uri> output = new HashSet<Uri>();
             bool new_max_found = true;
             int total_pages = 0;
 
@@ -113,8 +114,8 @@ namespace BulkMediaDownloader.ImageSources {
         }
 
 
-        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             List<Uri> image_pages = new List<Uri>();
 
@@ -153,7 +154,7 @@ namespace BulkMediaDownloader.ImageSources {
                     {
                         value = value.Replace(@"//", "http://");
                     }
-                    output.Add(new Uri(value));
+                    output.Add(new MediaSourceResult(new Uri(value), image_page, this.url));
                 }
 
             }

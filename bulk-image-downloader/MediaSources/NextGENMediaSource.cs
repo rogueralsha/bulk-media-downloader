@@ -5,9 +5,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace BulkMediaDownloader.ImageSources {
-    public class NextGENImageSource: AImageSource {
-        public NextGENImageSource(Uri url)
+namespace BulkMediaDownloader.MediaSources
+{
+    public class NextGENMediaSource: AMediaSource {
+        public NextGENMediaSource(Uri url)
             : base(url) {
 
         }
@@ -16,8 +17,8 @@ namespace BulkMediaDownloader.ImageSources {
 
         private static Regex images_regex = new Regex(@"['""](http.+?/wp-content/gallery/[^/]+/[^'""/]+)['""]");
 
-        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) { return null; }
-        protected override List<Uri> GetPages(Uri page_url, String page_contents) { return null; }
+        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) { return null; }
+        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) { return null; }
 
         protected void ProcessImages() {
             string page_contents = GetPageContents(url);

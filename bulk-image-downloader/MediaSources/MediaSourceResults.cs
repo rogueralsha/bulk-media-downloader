@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BulkMediaDownloader.ImageSources {
-    class _4ChanImageSource {
+namespace BulkMediaDownloader.MediaSources {
+    public class MediaSourceResults: HashSet<MediaSourceResult> {
     }
 }

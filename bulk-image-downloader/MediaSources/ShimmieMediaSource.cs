@@ -8,8 +8,9 @@ using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace BulkMediaDownloader.ImageSources {
-    public class ShimmieImageSource : AImageSource {
+namespace BulkMediaDownloader.MediaSources
+{
+    public class ShimmieMediaSource : AMediaSource {
 
         private static Regex address_regex = new Regex(@"((.+)/post/list/([^/]+)/?)(\d+)");
         private static Regex page_nav_regex = new Regex(@"/post/list/[^/]+/(\d+)");
@@ -22,7 +23,7 @@ namespace BulkMediaDownloader.ImageSources {
         private string query_root;
         private string album_name;
 
-        public ShimmieImageSource(Uri url)
+        public ShimmieMediaSource(Uri url)
             : base(url) {
 
 
@@ -64,8 +65,8 @@ namespace BulkMediaDownloader.ImageSources {
             return total_pages;
         }
 
-        protected override List<Uri> GetPages(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
+            HashSet<Uri> output = new HashSet<Uri>();
             bool new_max_found = true;
             int total_pages = 0;
 
@@ -98,8 +99,8 @@ namespace BulkMediaDownloader.ImageSources {
         }
 
 
-        protected override List<Uri> GetImagesFromPage(Uri page_url, String page_contents) {
-            List<Uri> output = new List<Uri>();
+        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             MatchCollection image_matches = image_only_regex.Matches(page_contents);
             foreach (Match image_match in image_matches)
@@ -113,7 +114,7 @@ namespace BulkMediaDownloader.ImageSources {
 
                 if (image_regex.IsMatch(image))
                 {
-                    output.Add(new Uri(image));
+                    output.Add(new MediaSourceResult(new Uri(image), page_url, this.url));
                 }
             }
             return output;
