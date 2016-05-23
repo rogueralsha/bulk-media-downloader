@@ -8,7 +8,8 @@ using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
 using CefSharp;
-using CefSharp.OffScreen; 
+using CefSharp.OffScreen;
+using HtmlAgilityPack;
 
 namespace BulkMediaDownloader.MediaSources
 {
@@ -18,8 +19,6 @@ namespace BulkMediaDownloader.MediaSources
         private readonly static Regex image_link_regex = new Regex("http://[^/]+/art/([^\"#]+)");
 
 
-        // This matches against the target of the download button. This is the preffered image.
-        private static Regex download_url_regex = new Regex("data-download_url=\"([^\"]+)\"");
         // This matches against the data that powers the "full image" when you click on an image
         private readonly static Regex full_image_regex = new Regex("<img.+?src=\"(http://(orig|img)[^\"]+)\"[\\s\\S]+class=\"dev-content-full[ ]?\">", RegexOptions.Singleline);
 
@@ -141,11 +140,17 @@ namespace BulkMediaDownloader.MediaSources
                 Uri image_page_url = new Uri(m.Value);
                 String image_page_contents = GetPageContents(image_page_url, page_url);
 
-                Match im = null;
                 String image_url = null;
-                if (download_url_regex.IsMatch(image_page_contents)) {
-                    im = download_url_regex.Match(image_page_contents);
-                    string download_link = WebUtility.HtmlDecode(im.Groups[1].Value);
+
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(image_page_contents);
+                //data-gmiclass="DownloadButton"
+                HtmlNode downloadLinkNode =
+                    doc.DocumentNode.SelectSingleNode("//a[@data-gmiclass='DownloadButton']");
+
+                if (downloadLinkNode!=null) {
+
+                    string download_link = WebUtility.HtmlDecode(downloadLinkNode.Attributes["href"].Value);
                     try {
                         image_url = this.GetRedirectURL(new Uri(download_link),new Uri(m.Value)).ToString();
                     } catch(WebException ex) {
@@ -158,11 +163,9 @@ namespace BulkMediaDownloader.MediaSources
                         }
                     }
                 } else if (full_image_regex.IsMatch(image_page_contents)) {
-                    im = full_image_regex.Match(image_page_contents);
-                    image_url = im.Groups[1].Value;
+                    image_url = full_image_regex.Match(image_page_contents).Groups[1].Value;
                 } else if (flash_reged.IsMatch(image_page_contents)) {
-                    im = flash_reged.Match(image_page_contents);
-                    image_url = im.Groups[1].Value;
+                    image_url = flash_reged.Match(image_page_contents).Groups[1].Value;
                 } else if (journal_regex.IsMatch(image_page_contents)) {
                     // This page is a journal entry, no image to download!
                     continue;

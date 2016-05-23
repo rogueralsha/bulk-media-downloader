@@ -129,6 +129,9 @@ namespace BulkMediaDownloader {
                         case "pixiv":
                             source = new PixivMediaSource(url.url);
                             break;
+                        case "imagefap":
+                            source = new ImageFapMediaSource(url.url);
+                            break;
                         default:
                             throw new Exception("URL Type not supported");
                     }
@@ -205,7 +208,7 @@ namespace BulkMediaDownloader {
             ShowExceptionHelper(e);
             Exception ex = e.InnerException;
             while (ex != null) {
-                ShowExceptionHelper(e);
+                ShowExceptionHelper(ex);
                 ex = ex.InnerException;
             }
         }

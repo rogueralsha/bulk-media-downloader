@@ -103,7 +103,7 @@ namespace BulkMediaDownloader.MediaSources
             }
 
             // Original image not present, usually means MANGA MODE!!
-            HtmlNode multipleWorksNode = doc.DocumentNode.SelectSingleNode("//a[@class=' _work multiple ']");
+            HtmlNode multipleWorksNode = doc.DocumentNode.SelectSingleNode("//a[contains(@class,'_work') and contains(@class,'multiple')]");
             if (multipleWorksNode != null) {
                 Uri mangaUrl = new Uri("http://www.pixiv.net/" + WebUtility.HtmlDecode(multipleWorksNode.Attributes["href"].Value));
                 String mangaContents = GetPageContents(mangaUrl, page_url);

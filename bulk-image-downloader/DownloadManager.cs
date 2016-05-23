@@ -24,7 +24,7 @@ namespace BulkMediaDownloader {
         //        Properties.Settings.Default.Save();
         //    }
         //}
-        public static bool Overwrite = false;
+        //public static bool Overwrite = false;
 
         private static bool StopTheMadness = false;
 

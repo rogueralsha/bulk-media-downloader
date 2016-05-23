@@ -25,6 +25,7 @@
                         <RibbonMenuItem Header="DeviantArt" x:Name="addDeviantArt" Tag="deviantart" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Flickr" IsEnabled="False" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Hentai Foundry" x:Name="addHentaiFoundry" Tag="hentaifoundry" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="ImageFap" x:Name="addImageFap" Tag="imagefap" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="JuiceBox" IsEnabled="False" x:Name="addJuiceBox" Tag="juicebox" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="NextGEN Gallery (Wordpress Plugin)" IsEnabled="False" x:Name="addNextGEN" Tag="nextgen" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Pixiv" x:Name="addPixiv" Tag="pixiv" Click="addDownload_Click"/>

@@ -95,6 +95,21 @@ namespace BulkMediaDownloader {
             return base.GetWebResponse(request);
         }
 
+        public WebHeaderCollection  GetHeaders(Uri address, Uri referrer = null) {
+            HttpWebRequest req = (HttpWebRequest)this.GetWebRequest(address);
+
+            req.Method = "HEAD";
+            req.AllowAutoRedirect = false;
+
+            if (referrer != null) {
+                req.Referer = referrer.AbsoluteUri;
+            }
+
+            using (HttpWebResponse res = (HttpWebResponse)this.GetWebResponse(req)) {
+                return res.Headers;
+            }
+        }
+
         public Uri GetRedirectURL(Uri address, Uri referrer = null) {
             HttpWebRequest req = (HttpWebRequest)this.GetWebRequest(address);
             req.AllowAutoRedirect = false;
@@ -103,11 +118,12 @@ namespace BulkMediaDownloader {
                 req.Referer = referrer.AbsoluteUri;
             }
 
-            HttpWebResponse res = (HttpWebResponse)this.GetWebResponse(req);
+            string image_url;
 
-            string image_url = res.GetResponseHeader("Location");
-
-            res.Close();
+            using (HttpWebResponse res = (HttpWebResponse)this.GetWebResponse(req)) {
+                image_url = res.GetResponseHeader("Location");
+                res.Close();
+            }
 
             if (String.IsNullOrWhiteSpace(image_url)) {
                 throw new Exception("No redirect returned from " + address.ToString());

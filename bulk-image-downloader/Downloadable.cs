@@ -32,9 +32,14 @@ namespace BulkMediaDownloader {
 
         public DownloadType Type = DownloadType.Binary;
 
+        private string _OverrideFileName = null;
+
         [XmlIgnore]
         public string FileName {
             get {
+                if (!String.IsNullOrWhiteSpace(_OverrideFileName))
+                    return _OverrideFileName;
+
                 UriBuilder builder = new UriBuilder(this.URL);
                 builder.Query = "";
 
@@ -329,6 +334,21 @@ namespace BulkMediaDownloader {
 
         #endregion
 
+        private void ChangeToNonDuplicateFileName() {
+            string filename = Path.GetFileNameWithoutExtension(this.FileName);
+            string ext = Path.GetExtension(this.FileName);
+            int i = 1;
+            while(File.Exists(this.GetDownloadPath())) {
+                string post_file_portion = " (" + i.ToString() + ")" + ext;
+                if(post_file_portion.Length + filename.Length > 255) {
+                    this._OverrideFileName = filename.Substring(0,255-post_file_portion.Length) + post_file_portion;
+                } else {
+                    this._OverrideFileName = filename + post_file_portion;
+                }
+                i++;
+            }
+        }
+
         #region Thread events
         private void DownloadThread() {
             try {
@@ -338,9 +358,26 @@ namespace BulkMediaDownloader {
                     }
                 }
 
-                if (!DownloadManager.Overwrite && File.Exists(this.GetDownloadPath())) {
-                    this.State = DownloadState.Skipped;
-                    return;
+                FileInfo fi = new FileInfo(this.GetDownloadPath());
+                if (fi.Exists) {
+                    long length = 0;
+
+                    using(SuperWebClient swc = new SuperWebClient()) {
+                        WebHeaderCollection whc = swc.GetHeaders(this.URL,this.RefererURL);
+                        String length_string = whc[HttpResponseHeader.ContentLength];
+                        try {
+                            length = long.Parse(length_string);
+                        } catch(Exception e) {
+                            Console.Out.WriteLine(e.Message);
+                        }
+ 
+                    }
+
+                    if (length == fi.Length) {
+                        this.State = DownloadState.Skipped;
+                        return;
+                    }
+                    ChangeToNonDuplicateFileName();
                 }
 
                 System.Threading.Thread.Sleep(this.StartDelay);
@@ -415,18 +452,30 @@ namespace BulkMediaDownloader {
                     //        throw new NotSupportedException();
                     //}
 
-                    if (!DownloadManager.Overwrite && File.Exists(this.GetDownloadPath())) {
-                        this.State = DownloadState.Skipped;
-                        return;
-                    } else {
+                    FileInfo fi = new FileInfo(this.GetDownloadPath());
+                    if (fi.Exists) {
+                        long length = 0;
                         switch (this.Type) {
                             case DownloadType.Binary:
-                                File.WriteAllBytes(this.GetDownloadPath(), ((DownloadDataCompletedEventArgs)e).Result);
+                                length =  ((DownloadDataCompletedEventArgs)e).Result.LongLength;
                                 break;
                             case DownloadType.Text:
-                                File.WriteAllText(this.GetDownloadPath(), ((DownloadStringCompletedEventArgs)e).Result);
+                                length =  ((DownloadStringCompletedEventArgs)e).Result.Length;
                                 break;
                         }
+                        if(length==fi.Length) {
+                            this.State = DownloadState.Skipped;
+                            return;
+                        }
+                        ChangeToNonDuplicateFileName();
+                    } 
+                    switch (this.Type) {
+                        case DownloadType.Binary:
+                            File.WriteAllBytes(this.GetDownloadPath(), ((DownloadDataCompletedEventArgs)e).Result);
+                            break;
+                        case DownloadType.Text:
+                            File.WriteAllText(this.GetDownloadPath(), ((DownloadStringCompletedEventArgs)e).Result);
+                            break;
                     }
                     this.State = DownloadState.Complete;
                 } catch (Exception ex) {

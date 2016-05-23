@@ -171,6 +171,22 @@ namespace BulkMediaDownloader.MediaSources
             return null;
         }
 
+        protected WebHeaderCollection GetHeaders(Uri url, Uri referer = null) {
+            for (int i = 0; i < WebRequestRetryCount; i++) {
+                try {
+                    return TheWebClient.GetHeaders(url, referer);
+                } catch (Exception ex) {
+                    if (i == WebRequestRetryCount - 1) {
+                        throw new WebException("Error while attempting to get header for: " + url.ToString(), ex);
+                    }
+                    System.Threading.Thread.Sleep(WebRequestErrorAdditionalWaitTime);
+                } finally {
+                    System.Threading.Thread.Sleep(WebRequestWaitTime);
+                }
+            }
+            return null;
+        }
+
         protected string GetPageContents(Uri url, Uri referer = null)
         {
             for (int i = 0; i < WebRequestRetryCount; i++)

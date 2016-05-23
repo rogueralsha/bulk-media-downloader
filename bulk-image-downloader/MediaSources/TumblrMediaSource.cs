@@ -15,16 +15,16 @@ namespace BulkMediaDownloader.MediaSources
 {
     public class TumblrMediaSource : AMediaSource
     {
-        private readonly static Regex root_name = new Regex("http://(([^.]+)\\.tumblr\\.com)/archive/");
+        private readonly static Regex root_name = new Regex("http://((.+)\\.com)/archive/");
         private readonly static Regex next_page_regex = new Regex(@"href=""(/archive/\?before_time=\d+)""");
 
-        private readonly static Regex post_regex = new Regex(@"href=""(http://[^\.]+\.tumblr\.com/post/[^""]+)""");
+        private readonly static Regex post_regex = new Regex(@"href=""(http://.+\.com/post/[^""]+)""");
         //private readonly static Regex post_type_regex = new Regex(@"<meta property=""og:type"" content=""([^""]+)""");
 
-        private readonly static Regex image_page_regex = new Regex(@"href=""(http://[^.]+\.tumblr\.com/image/[^\""]+)\""");
+        private readonly static Regex image_page_regex = new Regex(@"href=""(http://.+\.com/image/[^\""]+)\""");
 
         private readonly static Regex video_iframe_regex = new Regex(@"<iframe src=[""']([^'""]+)[""'] style=[""'][^'""]+[""'] class='[^'""]+tumblr_video[^'""]+['""]");
-        private readonly static Regex video_source_regex = new Regex(@"<source src=""(https?://[^.]+\.tumblr\.com/video_file/[^\""]+)\""");
+        private readonly static Regex video_source_regex = new Regex(@"<source src=""(https?://.+\.com/video_file/[^\""]+)\""");
 
         private readonly static Regex instagram_embed_regex = new Regex(@"instagram\.com/[^/]+/[^/]+/embed/");
 
@@ -32,7 +32,11 @@ namespace BulkMediaDownloader.MediaSources
 
         //private readonly static Regex meta_og_image_regex = new Regex(@" meta property=""og:image"" content=""([^""]+)""");
 
-        private readonly static Regex tumblr_image_src_regex = new Regex(@"data-src=""(http://[^.]+\.media\.tumblr\.com/[^\""]+)\""");
+        private readonly static Regex tumblr_image_src_regex =
+            new Regex(@"data-src=""(http://[^.]+\.media\.tumblr\.com/[^\""]+)\""");
+        private readonly static Regex tumblr_image_regex =
+                    new Regex(@"https?://[^.]+\.media\.tumblr\.com/[^/]+/tumblr_[^_]+_(\d+)\.");
+
 
         private readonly static Regex reblog_regex = new Regex(@"<div id=""info"">\s*reblogged");
 
@@ -301,6 +305,25 @@ namespace BulkMediaDownloader.MediaSources
 
                 foreach (Uri uri in image_urls)
                 {
+                    if(tumblr_image_regex.IsMatch(uri.ToString())) {
+                        Match image_m = tumblr_image_regex.Match(uri.ToString());
+                        String res_string = image_m.Groups[1].Value;
+                        int res = int.Parse(res_string);
+                        if(res<1280) {
+                            StringBuilder new_uri_string = new StringBuilder(uri.ToString());
+                            new_uri_string.Remove(image_m.Groups[1].Index, image_m.Groups[1].Length);
+                            new_uri_string.Insert(image_m.Groups[1].Index, "1280");
+                            Uri new_uri = new Uri(new_uri_string.ToString());
+                            try {
+                                this.GetHeaders(new_uri, new Uri(post_url));
+                                output.Add(new MediaSourceResult(new_uri, new Uri(post_url), this.url));
+                                continue;
+                            } catch(WebException ex) {
+                                Console.Out.WriteLine();
+                            }
+                        }
+                    }
+
                     output.Add(new MediaSourceResult(uri, new Uri(post_url), this.url));
                 }
             }
