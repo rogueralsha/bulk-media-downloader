@@ -22,8 +22,9 @@
                     <RibbonMenuButton LargeImageSource="images/add.png" Label="Add">
                         <RibbonMenuItem Header="Artstation" x:Name="addArtstation" Tag="artstation" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Blogger" x:Name="addBlogger" Tag="blogger" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Comic Art Community" x:Name="addComicArtCommunity" Tag="cac" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="DeviantArt" x:Name="addDeviantArt" Tag="deviantart" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Flickr" IsEnabled="False" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
+                        <RibbonMenuItem Header="Flickr" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="Hentai Foundry" x:Name="addHentaiFoundry" Tag="hentaifoundry" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="ImageFap" x:Name="addImageFap" Tag="imagefap" Click="addDownload_Click"/>
                         <RibbonMenuItem Header="JuiceBox" IsEnabled="False" x:Name="addJuiceBox" Tag="juicebox" Click="addDownload_Click"/>

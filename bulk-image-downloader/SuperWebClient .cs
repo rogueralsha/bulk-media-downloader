@@ -85,7 +85,25 @@ namespace BulkMediaDownloader {
 
         }
 
+        public System.Net.HttpStatusCode GetResponseStatusCode(Uri address, Uri referrer = null) {
+            HttpWebRequest req = (HttpWebRequest)this.GetWebRequest(address);
+            try {
+                req.Method = "HEAD";
+                req.AllowAutoRedirect = false;
 
+                if (referrer != null) {
+                    req.Referer = referrer.AbsoluteUri;
+                }
+
+                using (HttpWebResponse res = (HttpWebResponse)this.GetWebResponse(req)) {
+                    return res.StatusCode;
+                }
+            } catch (System.Net.WebException e) {
+                if (e.Response is HttpWebResponse)
+                    return ((HttpWebResponse)e.Response).StatusCode;
+                throw e;
+            }
+        }
 
         protected override WebResponse GetWebResponse(WebRequest request) {
             string headers = request.Headers.ToString();

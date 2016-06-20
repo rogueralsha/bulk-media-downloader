@@ -132,6 +132,9 @@ namespace BulkMediaDownloader {
                         case "imagefap":
                             source = new ImageFapMediaSource(url.url);
                             break;
+                        case "cac":
+                            source = new ComicArtCommunityMediaSource(url.url);
+                            break;
                         default:
                             throw new Exception("URL Type not supported");
                     }
