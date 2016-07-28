@@ -99,7 +99,8 @@ namespace BulkMediaDownloader.MediaSources
         }
 
 
-        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
+            String page_contents = this.GetPageContents(page_url);
             HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             MatchCollection image_matches = image_only_regex.Matches(page_contents);

@@ -73,9 +73,9 @@ namespace BulkMediaDownloader.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public global::BulkMediaDownloader.DownloadManager Downloads {
+        public global::BulkMediaDownloader.Download.DownloadManager Downloads {
             get {
-                return ((global::BulkMediaDownloader.DownloadManager)(this["Downloads"]));
+                return ((global::BulkMediaDownloader.Download.DownloadManager)(this["Downloads"]));
             }
             set {
                 this["Downloads"] = value;

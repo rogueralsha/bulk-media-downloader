@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\CefSharp.Wpf.49.0.1\build\CefSharp.Wpf.props" Condition="Exists('..\packages\CefSharp.Wpf.49.0.1\build\CefSharp.Wpf.props')" />
-  <Import Project="..\packages\CefSharp.OffScreen.49.0.1\build\CefSharp.OffScreen.props" Condition="Exists('..\packages\CefSharp.OffScreen.49.0.1\build\CefSharp.OffScreen.props')" />
-  <Import Project="..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.props" Condition="Exists('..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.props')" />
+  <Import Project="..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.props" Condition="Exists('..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.props')" />
+  <Import Project="..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.props" Condition="Exists('..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.props')" />
+  <Import Project="..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.props" Condition="Exists('..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -41,8 +41,8 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="HtmlAgilityPack, Version=1.4.9.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
-      <HintPath>..\packages\HtmlAgilityPack.1.4.9\lib\Net45\HtmlAgilityPack.dll</HintPath>
+    <Reference Include="HtmlAgilityPack, Version=1.4.9.5, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
+      <HintPath>..\packages\HtmlAgilityPack.1.4.9.5\lib\Net45\HtmlAgilityPack.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.WindowsAPICodePack">
@@ -60,8 +60,8 @@
     <Reference Include="Microsoft.WindowsAPICodePack.ShellExtensions">
       <HintPath>..\packages\winapicp.1.1\lib\Microsoft.WindowsAPICodePack.ShellExtensions.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.8.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -88,6 +88,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Download\ADownloadable.cs" />
+    <Compile Include="Download\DownloadablesSource.cs" />
+    <Compile Include="Download\IGetCredentials.cs" />
     <Compile Include="MediaSources\ImageFapMediaSource.cs" />
     <Compile Include="MediaSources\PixivMediaSource.cs" />
     <Compile Include="MediaSources\ASitemapMediaSource.cs" />
@@ -120,8 +123,8 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Downloadable.cs" />
-    <Compile Include="DownloadManager.cs" />
+    <Compile Include="Download\Downloadable.cs" />
+    <Compile Include="Download\DownloadManager.cs" />
     <Compile Include="MediaSources\4ChanMediaSource.cs" />
     <Compile Include="MediaSources\AMediaSource.cs" />
     <Compile Include="MediaSources\FlickrMediaSource.cs" />
@@ -181,20 +184,24 @@
     <Resource Include="images\play.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="..\packages\cef.redist.x64.3.2623.1401\build\cef.redist.x64.targets" Condition="Exists('..\packages\cef.redist.x64.3.2623.1401\build\cef.redist.x64.targets')" />
+  <Import Project="..\packages\cef.redist.x64.3.2704.1432\build\cef.redist.x64.targets" Condition="Exists('..\packages\cef.redist.x64.3.2704.1432\build\cef.redist.x64.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\cef.redist.x64.3.2623.1401\build\cef.redist.x64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\cef.redist.x64.3.2623.1401\build\cef.redist.x64.targets'))" />
-    <Error Condition="!Exists('..\packages\cef.redist.x86.3.2623.1401\build\cef.redist.x86.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\cef.redist.x86.3.2623.1401\build\cef.redist.x86.targets'))" />
-    <Error Condition="!Exists('..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.props'))" />
-    <Error Condition="!Exists('..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.targets'))" />
-    <Error Condition="!Exists('..\packages\CefSharp.OffScreen.49.0.1\build\CefSharp.OffScreen.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.OffScreen.49.0.1\build\CefSharp.OffScreen.props'))" />
-    <Error Condition="!Exists('..\packages\CefSharp.Wpf.49.0.1\build\CefSharp.Wpf.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Wpf.49.0.1\build\CefSharp.Wpf.props'))" />
+    <Error Condition="!Exists('..\packages\cef.redist.x64.3.2704.1432\build\cef.redist.x64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\cef.redist.x64.3.2704.1432\build\cef.redist.x64.targets'))" />
+    <Error Condition="!Exists('..\packages\cef.redist.x86.3.2704.1432\build\cef.redist.x86.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\cef.redist.x86.3.2704.1432\build\cef.redist.x86.targets'))" />
+    <Error Condition="!Exists('..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.props'))" />
+    <Error Condition="!Exists('..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.targets'))" />
+    <Error Condition="!Exists('..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.props'))" />
+    <Error Condition="!Exists('..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.targets'))" />
+    <Error Condition="!Exists('..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.props'))" />
+    <Error Condition="!Exists('..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.targets'))" />
   </Target>
-  <Import Project="..\packages\cef.redist.x86.3.2623.1401\build\cef.redist.x86.targets" Condition="Exists('..\packages\cef.redist.x86.3.2623.1401\build\cef.redist.x86.targets')" />
-  <Import Project="..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.targets" Condition="Exists('..\packages\CefSharp.Common.49.0.1\build\CefSharp.Common.targets')" />
+  <Import Project="..\packages\cef.redist.x86.3.2704.1432\build\cef.redist.x86.targets" Condition="Exists('..\packages\cef.redist.x86.3.2704.1432\build\cef.redist.x86.targets')" />
+  <Import Project="..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.targets" Condition="Exists('..\packages\CefSharp.Common.51.0.0\build\CefSharp.Common.targets')" />
+  <Import Project="..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.targets" Condition="Exists('..\packages\CefSharp.OffScreen.51.0.0\build\CefSharp.OffScreen.targets')" />
+  <Import Project="..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.targets" Condition="Exists('..\packages\CefSharp.Wpf.51.0.0\build\CefSharp.Wpf.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

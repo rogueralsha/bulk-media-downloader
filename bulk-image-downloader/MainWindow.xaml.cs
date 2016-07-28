@@ -15,12 +15,14 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using BulkMediaDownloader.MediaSources;
+using BulkMediaDownloader.Download;
+using CefSharp;
 
 namespace BulkMediaDownloader {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : RibbonWindow {
+    public partial class MainWindow : RibbonWindow, IGetCredentials {
 
         DownloadManager manager {
             get {
@@ -36,6 +38,8 @@ namespace BulkMediaDownloader {
 
         public MainWindow() {
             InitializeComponent();
+            Cef.Initialize(new CefSettings());
+            DownloadManager.CredentialsProvider = this;
         }
 
         private void DaWindow_Loaded(object sender, RoutedEventArgs e) {
@@ -142,13 +146,8 @@ namespace BulkMediaDownloader {
                     source.worker.ProgressChanged += Worker_ProgressChanged;
 
 
-                    if (source.RequiresLogin) {
-                        WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
-                        loginWindow.Owner = this;
-                        if (!loginWindow.ShowDialog().Value) {
-                            return;
-                        }
-                        AMediaSource.SetCookies(loginWindow.FoundCookies);
+                    if (source.RequiresLogin&&!this.getCredentials(source)) {
+                        return;
                     }
 
                     string album_folder = source.getFolderNameFromURL(url.url);
@@ -174,9 +173,9 @@ namespace BulkMediaDownloader {
                             return;
                         }
 
-                        HashSet<MediaSourceResult> images = (HashSet<MediaSourceResult>)e.Result;
-                        foreach (MediaSourceResult media in images) {
-                            manager.DownloadMedia(media, download_dir);
+                        List<Download.DownloadablesSource> sources = (List<Download.DownloadablesSource>)e.Result;
+                        foreach (DownloadablesSource downloadSource in sources) {
+                            manager.AddDownloadsSource(downloadSource,download_dir);
                         }
                         manager.SaveAll();
 
@@ -203,6 +202,18 @@ namespace BulkMediaDownloader {
 
 
         }
+
+        public bool getCredentials(AMediaSource source) {
+            WebSiteLoginWindow loginWindow = new WebSiteLoginWindow(source.LoginURL, "");
+            loginWindow.Owner = this;
+            if (!loginWindow.ShowDialog().Value) {
+                return false;
+            }
+            AMediaSource.SetCookies(loginWindow.FoundCookies);
+            return true;
+        }
+
+
 
         private void ShowException(Exception e, bool show_message_box = true) {
             if (show_message_box)
@@ -283,7 +294,7 @@ namespace BulkMediaDownloader {
         //}
 
         private void pauseButton_Click(object sender, RoutedEventArgs e) {
-            foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
+            foreach (ADownloadable down in this.lstDownloadables.SelectedItems) {
                 down.Pause();
             }
             manager.SaveAll();
@@ -295,7 +306,7 @@ namespace BulkMediaDownloader {
         }
 
         private void startButton_Click(object sender, RoutedEventArgs e) {
-            foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
+            foreach (ADownloadable down in this.lstDownloadables.SelectedItems) {
                 down.Reset();
             }
             manager.SaveAll();
@@ -321,12 +332,12 @@ namespace BulkMediaDownloader {
         }
 
         private void clearSelectedButton_Click(object sender, RoutedEventArgs e) {
-            List<Downloadable> to_remove = new List<Downloadable>();
-            foreach (Downloadable down in this.lstDownloadables.SelectedItems) {
+            List<ADownloadable> to_remove = new List<ADownloadable>();
+            foreach (ADownloadable down in this.lstDownloadables.SelectedItems) {
                 down.Pause();
                 to_remove.Add(down);
             }
-            foreach (Downloadable down in to_remove) {
+            foreach (ADownloadable down in to_remove) {
                 manager.Remove(down);
             }
             manager.SaveAll();
@@ -368,7 +379,7 @@ namespace BulkMediaDownloader {
 
         private void contextMenuCopy_Click(object sender, RoutedEventArgs e) {
             StringBuilder text = new StringBuilder();
-            foreach (Downloadable item in lstDownloadables.SelectedItems) {
+            foreach (ADownloadable item in lstDownloadables.SelectedItems) {
                 text.AppendLine(item.URL.ToString());
             }
             if (text.Length > 0)
@@ -379,5 +390,7 @@ namespace BulkMediaDownloader {
         private void clearOutputButton_Click(object sender, RoutedEventArgs e) {
             logText.Clear();
         }
+
+
     }
 }

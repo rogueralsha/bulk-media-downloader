@@ -8,29 +8,16 @@ using System.IO;
 using System.Net;
 using System.Xml;
 using System.Xml.Serialization;
-namespace BulkMediaDownloader {
-    public enum DownloadState {
-        Pending,
-        Paused,
-        Downloading,
-        Complete,
-        Skipped,
-        Error
-    }
-    public enum DownloadType {
-        Binary,
-        Text
-    }
+namespace BulkMediaDownloader.Download {
+
+
 
     [Serializable]
-    public class Downloadable : INotifyPropertyChanged {
-        private Thread download_thread;
+    public class Downloadable : ADownloadable, INotifyPropertyChanged {
         private SuperWebClient client;
 
         [XmlIgnore]
         public int MaxAttempts { get; set; }
-
-        public DownloadType Type = DownloadType.Binary;
 
         private string _OverrideFileName = null;
 
@@ -56,16 +43,15 @@ namespace BulkMediaDownloader {
                 return file;
             }
         }
+
         [XmlIgnore]
-        public Uri URL { get; protected set; }
-        public String URLString {
+        public override bool RequiresLogin {
             get {
-                return URL.ToString();
-            }
-            set {
-                URL = new Uri(value);
+                return false;
             }
         }
+
+
         [XmlIgnore]
         public Uri RefererURL { get; protected set; }
         public String RefererURLString {
@@ -86,7 +72,6 @@ namespace BulkMediaDownloader {
 
         private DateTime download_start_time;
 
-        public String DownloadDir { get; set; }
         [XmlIgnore]
         public Uri Site { get; set; }
         public String SiteString {
@@ -112,51 +97,9 @@ namespace BulkMediaDownloader {
         public int StartDelay = 1000;
 
         #region Properties
-        private DownloadState _State = DownloadState.Pending;
-        public DownloadState State {
-            get {
-                return _State;
-            }
 
-            set {
-                _State = value;
-                NotifyPropertyChanged("State");
-                NotifyPropertyChanged("StateText");
-                NotifyPropertyChanged("Speed");
-                NotifyPropertyChanged("ProgressText");
-                NotifyPropertyChanged("Progress");
-            }
-        }
-        [XmlIgnore]
-        public string StateText {
-            get {
-                return State.ToString();
-            }
-        }
 
-        private Exception _except = null;
-        [XmlIgnore]
-        public Exception Exception {
-            get {
-                return _except;
-            }
-            protected set {
-                _except = value;
-                NotifyPropertyChanged("Exception");
-                NotifyPropertyChanged("Error");
-            }
 
-        }
-        [XmlIgnore]
-        public String Error {
-            get {
-                if (_except != null) {
-                    return _except.Message;
-                } else {
-                    return "";
-                }
-            }
-        }
 
         private long _length = -1;
         public long Length {
@@ -275,10 +218,9 @@ namespace BulkMediaDownloader {
         public Downloadable(Uri url, Uri referer, string download_dir) : this(url, download_dir) {
             this.RefererURL = referer;
         }
-        public Downloadable(Uri url, string download_dir): this() {
+        public Downloadable(Uri url, string download_dir) : this() {
             this.URL = url;
             this.DownloadDir = download_dir;
-            download_thread = new Thread(DownloadThread);
             MaxAttempts = 5;
         }
 
@@ -287,20 +229,9 @@ namespace BulkMediaDownloader {
 
 
         #region Download controls
-        public void Start() {
-            this.State = DownloadState.Downloading;
-            try {
-                if (this.download_thread == null || this.download_thread.ThreadState == ThreadState.Stopped) {
-                    this.download_thread = new Thread(DownloadThread);
-                }
-                this.download_thread.Start();
-            } catch (ThreadStartException ex) {
-                this.download_thread = new Thread(DownloadThread);
-                this.download_thread.Start();
-            }
-        }
 
-        public void Reset() {
+
+        public override void Reset() {
             this.State = DownloadState.Pending;
             if (this.client != null && this.client.IsBusy) {
                 try {
@@ -316,7 +247,7 @@ namespace BulkMediaDownloader {
             }
         }
 
-        public void Pause() {
+        public override void Pause() {
             this.State = DownloadState.Paused;
             if (this.client != null && this.client.IsBusy) {
                 try {
@@ -338,10 +269,10 @@ namespace BulkMediaDownloader {
             string filename = Path.GetFileNameWithoutExtension(this.FileName);
             string ext = Path.GetExtension(this.FileName);
             int i = 1;
-            while(File.Exists(this.GetDownloadPath())) {
+            while (File.Exists(this.GetDownloadPath())) {
                 string post_file_portion = " (" + i.ToString() + ")" + ext;
-                if(post_file_portion.Length + filename.Length > 255) {
-                    this._OverrideFileName = filename.Substring(0,255-post_file_portion.Length) + post_file_portion;
+                if (post_file_portion.Length + filename.Length > 255) {
+                    this._OverrideFileName = filename.Substring(0, 255 - post_file_portion.Length) + post_file_portion;
                 } else {
                     this._OverrideFileName = filename + post_file_portion;
                 }
@@ -349,72 +280,80 @@ namespace BulkMediaDownloader {
             }
         }
 
-        #region Thread events
-        private void DownloadThread() {
-            try {
-                if (client != null) {
-                    if (client.IsBusy) {
-                        throw new Exception("File is already downloading");
-                    }
-                }
+        private void setUpClient() {
+            client = new SuperWebClient();
+            client.SimpleHeaders = this.SimpleHeaders;
 
-                FileInfo fi = new FileInfo(this.GetDownloadPath());
-                if (fi.Exists) {
-                    long length = 0;
-
-                    using(SuperWebClient swc = new SuperWebClient()) {
-                        WebHeaderCollection whc = swc.GetHeaders(this.URL,this.RefererURL);
-                        String length_string = whc[HttpResponseHeader.ContentLength];
-                        try {
-                            length = long.Parse(length_string);
-                        } catch(Exception e) {
-                            Console.Out.WriteLine(e.Message);
-                        }
- 
-                    }
-
-                    if (length == fi.Length) {
-                        this.State = DownloadState.Skipped;
-                        return;
-                    }
-                    ChangeToNonDuplicateFileName();
-                }
-
-                System.Threading.Thread.Sleep(this.StartDelay);
-
-                client = new SuperWebClient();
-                client.SimpleHeaders = this.SimpleHeaders;
-
-                if (this.RefererURL != null) {
-                    client.SetReferer(this.RefererURL);
-                }
-
-                client.DownloadProgressChanged += wc_DownloadProgressChanged;
-                client.DownloadDataCompleted += client_DownloadCompleted;
-                client.DownloadStringCompleted += client_DownloadCompleted;
-
-                switch (this.Type) {
-                    case DownloadType.Binary:
-                        client.DownloadDataAsync(this.URL);
-                        break;
-                    case DownloadType.Text:
-                        client.DownloadStringAsync(this.URL);
-                        break;
-                }
-                this.State = DownloadState.Downloading;
-                Attempts = 1;
-                return;
-
-            } catch (Exception e) {
-                this.Exception = e;
-                this.State = DownloadState.Error;
+            if (this.RefererURL != null) {
+                client.SetReferer(this.RefererURL);
             }
+
+            client.DownloadProgressChanged += wc_DownloadProgressChanged;
+            client.DownloadDataCompleted += client_DownloadCompleted;
+            client.DownloadStringCompleted += client_DownloadCompleted;
+
+
+        }
+
+        #region Thread events
+        protected override object DownloadThread() {
+            if (client != null) {
+                if (client.IsBusy) {
+                    throw new Exception("File is already downloading");
+                }
+            }
+
+            FileInfo fi = new FileInfo(this.GetDownloadPath());
+
+            if (!fi.Directory.Exists) {
+                fi.Directory.Create();
+            }
+
+            if (fi.Exists) {
+                long length = 0;
+
+                using (SuperWebClient swc = new SuperWebClient()) {
+                    WebHeaderCollection whc = swc.GetHeaders(this.URL, this.RefererURL);
+                    String length_string = whc[HttpResponseHeader.ContentLength];
+                    try {
+                        length = long.Parse(length_string);
+                    } catch (Exception e) {
+                        Console.Out.WriteLine(e.Message);
+                    }
+
+                }
+
+                if (length == fi.Length) {
+                    this.State = DownloadState.Skipped;
+                    return null;
+                }
+                ChangeToNonDuplicateFileName();
+            }
+
+            System.Threading.Thread.Sleep(this.StartDelay);
+
+            setUpClient();
+
+            switch (this.Type) {
+                case DownloadType.Binary:
+                    client.DownloadDataAsync(this.URL);
+                    break;
+                case DownloadType.Text:
+                    client.DownloadStringAsync(this.URL);
+                    break;
+            }
+            this.State = DownloadState.Downloading;
+            Attempts = 1;
+            return null;
         }
 
         void client_DownloadCompleted(object sender, AsyncCompletedEventArgs e) {
             if (e.Error != null) {
                 if (Attempts < MaxAttempts) {
                     Thread.Sleep(5000);
+                    if (client == null) {
+                        setUpClient();
+                    }
                     switch (this.Type) {
                         case DownloadType.Binary:
                             client.DownloadDataAsync(this.URL);
@@ -453,22 +392,27 @@ namespace BulkMediaDownloader {
                     //}
 
                     FileInfo fi = new FileInfo(this.GetDownloadPath());
+
+                    if (!fi.Directory.Exists) {
+                        fi.Directory.Create();
+                    }
+
                     if (fi.Exists) {
                         long length = 0;
                         switch (this.Type) {
                             case DownloadType.Binary:
-                                length =  ((DownloadDataCompletedEventArgs)e).Result.LongLength;
+                                length = ((DownloadDataCompletedEventArgs)e).Result.LongLength;
                                 break;
                             case DownloadType.Text:
-                                length =  ((DownloadStringCompletedEventArgs)e).Result.Length;
+                                length = ((DownloadStringCompletedEventArgs)e).Result.Length;
                                 break;
                         }
-                        if(length==fi.Length) {
+                        if (length == fi.Length) {
                             this.State = DownloadState.Skipped;
                             return;
                         }
                         ChangeToNonDuplicateFileName();
-                    } 
+                    }
                     switch (this.Type) {
                         case DownloadType.Binary:
                             File.WriteAllBytes(this.GetDownloadPath(), ((DownloadDataCompletedEventArgs)e).Result);
@@ -541,18 +485,6 @@ namespace BulkMediaDownloader {
             }
         }
 
-
-        #endregion
-
-        #region INotify Implementation
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        private void NotifyPropertyChanged(String propertyName = "") {
-            if (PropertyChanged != null) {
-                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-            }
-        }
 
         #endregion
     }

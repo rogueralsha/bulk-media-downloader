@@ -17,7 +17,7 @@
             <ColumnDefinition Width="100" />
             <ColumnDefinition Width="100" />
         </Grid.ColumnDefinitions>
-        <cefSharp:ChromiumWebBrowser Grid.Row="0" Grid.Column="0" Name="webBrowser" Grid.ColumnSpan="3" />
+        <cefSharp:ChromiumWebBrowser Grid.Row="0" Grid.Column="0" Name="webBrowser" Grid.ColumnSpan="3" Address="" />
         <Label Content="Please log into the web site above, then click OK" Grid.Row="1" Grid.Column="0" />
         <Button x:Name="okButton" Content="OK" Click="okButton_Click" Grid.Row="1" Grid.Column="1" />
         <Button x:Name="cancelButton" Content="Cancel" Click="cancelButton_Click" Grid.Row="1" Grid.Column="2" />

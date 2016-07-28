@@ -11,8 +11,7 @@ using CefSharp;
 using CefSharp.OffScreen;
 using HtmlAgilityPack;
 
-namespace BulkMediaDownloader.MediaSources
-{
+namespace BulkMediaDownloader.MediaSources {
     public class DeviantArtMediaSource : AMediaSource {
         private readonly static Regex root_name = new Regex("http://(([^.]+)\\.deviantart\\.com)/gallery/");
         private readonly static Regex next_page_regex = new Regex("href=\"(/gallery/?.*?offset=(\\d+)[^\"]*)\"");
@@ -33,12 +32,9 @@ namespace BulkMediaDownloader.MediaSources
         private string address_root;
         private string album_name;
 
-        public override bool RequiresLogin
-        {
-            get
-            {
-                if (SuperWebClient.HasValidCookiesForDomain(new Uri("http://deviantart.com")))
-                {
+        public override bool RequiresLogin {
+            get {
+                if (SuperWebClient.HasValidCookiesForDomain(new Uri("http://deviantart.com"))) {
                     return false;
                 }
                 return true;
@@ -63,47 +59,41 @@ namespace BulkMediaDownloader.MediaSources
         }
 
 
-        public override string getFolderNameFromURL(Uri url)
-        {
-            if (!root_name.IsMatch(url.ToString()))
-            {
+        public override string getFolderNameFromURL(Uri url) {
+            if (!root_name.IsMatch(url.ToString())) {
                 throw new Exception("DeviantArt URL not understood");
             }
             MatchCollection address_matches = root_name.Matches(url.ToString());
             string album_name = address_matches[0].Groups[2].Value;
             return album_name;
         }
+
         protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
             SortedDictionary<int, Uri> candidates = new SortedDictionary<int, Uri>();
             Queue<Uri> to_check = new Queue<Uri>();
 
 
             MatchCollection mc = next_page_regex.Matches(WebUtility.HtmlDecode(page_contents));
-            while(true)
-            {
-                foreach (Match m in mc)
-                {
+            while (true) {
+                foreach (Match m in mc) {
                     String tmp = "http://" + address_root + m.Groups[1].Value;
                     if (!tmp.Contains("catpath")) {
                         continue;
                     }
                     Uri uri = new Uri(tmp);
                     int offset = int.Parse(m.Groups[2].Value);
-                    if (!candidates.ContainsValue(uri)&&!candidates.ContainsKey(offset))
-                    {
+                    if (!candidates.ContainsValue(uri) && !candidates.ContainsKey(offset)) {
                         worker.ReportProgress(-1, "Found page: " + uri.ToString());
                         candidates.Add(offset, uri);
                         to_check.Enqueue(uri);
                     }
                 }
 
-                if(to_check.Count > 0)
-                {
+                if (to_check.Count > 0) {
                     Uri next_page = to_check.Dequeue();
                     page_contents = GetPageContents(next_page, page_url);
                     mc = next_page_regex.Matches(WebUtility.HtmlDecode(page_contents));
-                } else
-                {
+                } else {
                     break;
                 }
             }
@@ -113,78 +103,82 @@ namespace BulkMediaDownloader.MediaSources
             already_checked = new List<string>();
 
             if (candidates.Count == 0)
-                return new HashSet<Uri>() { page_url };
-            else
-                return new HashSet<Uri>(candidates.Values.ToList<Uri>());
+                candidates.Add(0, page_url);
 
+            HashSet<Uri> output = new HashSet<Uri>();
+
+            foreach (Uri uri in candidates.Values) {
+                worker.ReportProgress(-1, "Fetching image pages from " +uri.ToString());
+                String imagePageContents = this.GetPageContents(uri);
+                MatchCollection imc = image_link_regex.Matches(imagePageContents);
+                foreach (Match m in imc) {
+                    if (!m.Value.Contains(address_root)) {
+                        continue;
+                    }
+                    if (already_checked.Contains(m.Value)) {
+                        continue;
+                    }
+                    already_checked.Add(m.Value);
+                    Uri image_page_url = new Uri(m.Value);
+                    if (!output.Contains(image_page_url))
+                        output.Add(image_page_url);
+                }
+
+            }
+            return output;
         }
 
 
         private List<String> already_checked = new List<string>();
 
-        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
+            String page_contents = this.GetPageContents(page_url);
             HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
+            String image_page_contents = GetPageContents(page_url, page_url);
 
-            MatchCollection mc = image_link_regex.Matches(page_contents);
-            foreach(Match m in mc)
-            {
-                if(!m.Value.Contains(address_root))
-                {
-                    continue;
-                }
-                if(already_checked.Contains(m.Value))
-                {
-                    continue;
-                }
-                already_checked.Add(m.Value);
-                Uri image_page_url = new Uri(m.Value);
-                String image_page_contents = GetPageContents(image_page_url, page_url);
+            String image_url = null;
 
-                String image_url = null;
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(image_page_contents);
+            //data-gmiclass="DownloadButton"
+            HtmlNode downloadLinkNode =
+                doc.DocumentNode.SelectSingleNode("//a[@data-gmiclass='DownloadButton']");
 
-                HtmlDocument doc = new HtmlDocument();
-                doc.LoadHtml(image_page_contents);
-                //data-gmiclass="DownloadButton"
-                HtmlNode downloadLinkNode =
-                    doc.DocumentNode.SelectSingleNode("//a[@data-gmiclass='DownloadButton']");
+            if (downloadLinkNode != null) {
 
-                if (downloadLinkNode!=null) {
-
-                    string download_link = WebUtility.HtmlDecode(downloadLinkNode.Attributes["href"].Value);
-                    try {
-                        image_url = this.GetRedirectURL(new Uri(download_link),new Uri(m.Value)).ToString();
-                    } catch(WebException ex) {
-                        if((int)ex.Status>=400&&(int)ex.Status<500) {
-                            throw ex;
-                        } else {
-                            this.worker.ReportProgress(-1, "Error while attempting to get download link");
-                            this.worker.ReportProgress(-1, ex);
-                            continue;
-                        }
+                string download_link = WebUtility.HtmlDecode(downloadLinkNode.Attributes["href"].Value);
+                try {
+                    image_url = this.GetRedirectURL(new Uri(download_link), page_url).ToString();
+                } catch (WebException ex) {
+                    if ((int)ex.Status >= 400 && (int)ex.Status < 500) {
+                        throw ex;
+                    } else {
+                        this.worker.ReportProgress(-1, "Error while attempting to get download link");
+                        this.worker.ReportProgress(-1, ex);
+                        return output;
                     }
-                } else if (full_image_regex.IsMatch(image_page_contents)) {
-                    image_url = full_image_regex.Match(image_page_contents).Groups[1].Value;
-                } else if (flash_reged.IsMatch(image_page_contents)) {
-                    image_url = flash_reged.Match(image_page_contents).Groups[1].Value;
-                } else if (journal_regex.IsMatch(image_page_contents)) {
-                    // This page is a journal entry, no image to download!
-                    continue;
-                } else {
-                    //string temp = Path.GetTempFileName();
-                    //System.IO.File.WriteAllLines(temp, image_page_contents.Split('\n'));
-                    this.worker.ReportProgress(-1,"Image URL not found on " + m.Value);
-                    continue;
                 }
-
-                Uri uri = new Uri(image_url);
-                worker.ReportProgress(-1, "Found image: " + uri.ToString());
-                output.Add(new MediaSourceResult(uri, image_page_url, this.url));
-
+            } else if (full_image_regex.IsMatch(image_page_contents)) {
+                image_url = full_image_regex.Match(image_page_contents).Groups[1].Value;
+            } else if (flash_reged.IsMatch(image_page_contents)) {
+                image_url = flash_reged.Match(image_page_contents).Groups[1].Value;
+            } else if (journal_regex.IsMatch(image_page_contents)) {
+                // This page is a journal entry, no image to download!
+                return output;
+            } else {
+                //string temp = Path.GetTempFileName();
+                //System.IO.File.WriteAllLines(temp, image_page_contents.Split('\n'));
+                this.worker.ReportProgress(-1, "Image URL not found on " + page_url.ToString());
+                return output;
             }
+
+            Uri uri = new Uri(image_url);
+            worker.ReportProgress(-1, "Found image: " + uri.ToString());
+            output.Add(new MediaSourceResult(uri, page_url, this.url));
 
 
             return output;
-            
+
         }
 
 

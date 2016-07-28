@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Net;
 using System.IO;
 using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 
 namespace BulkMediaDownloader.MediaSources
 {
@@ -14,8 +15,6 @@ namespace BulkMediaDownloader.MediaSources
         //http://www.hentai-foundry.com/pictures/user/GENSHI
         private static Regex address_regex = new Regex(@"((.+)/pictures/user/([^/]+))");
         private static Regex page_nav_regex = new Regex(@"/pictures/user/[^/]+/page/(\d+)");
-        private static Regex image_link_regex = new Regex(@"/pictures/user/[^/]+/(\d+)/[^""]+");
-        private static Regex image_download_regex = new Regex(@"//pictures.hentai-foundry.com/[^/]+/[^/]+/(\d+)/[^""]+");
 
         private string address_root;
         private string query_root;
@@ -25,7 +24,7 @@ namespace BulkMediaDownloader.MediaSources
         {
             get
             {
-                if (SuperWebClient.HasValidCookiesForDomain(new Uri("http://hentaifoundry.com")))
+                if (SuperWebClient.HasValidCookiesForDomain(new Uri("http://www.hentai-foundry.com/")))
                 {
                     return false;
                 }
@@ -114,20 +113,32 @@ namespace BulkMediaDownloader.MediaSources
         }
 
 
-        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+        public  override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
+            String page_contents = this.GetPageContents(page_url);
             HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             List<Uri> image_pages = new List<Uri>();
 
-            MatchCollection image_matches = image_link_regex.Matches(page_contents);
-            foreach (Match image_match in image_matches)
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(page_contents);
+
+
+            HtmlNodeCollection imagePageNodes = doc.DocumentNode.SelectNodes("//img[@class='thumb']");
+
+            foreach (HtmlNode node in imagePageNodes)
             {
                 IfPausedWaitUntilUnPaused();
 
-                GroupCollection groups = image_match.Groups;
-                Group group = groups[0];
 
-                string image_page = image_match.Value;
+                HtmlNode linkNode = node.ParentNode;
+                if(linkNode.Name.ToLower()!="a") {
+                    throw new Exception("Found a thumbnail without a link");
+                }
+
+                if (String.IsNullOrWhiteSpace(linkNode.Attributes["href"].Value))
+                    throw new Exception("No href found");
+
+                string image_page = linkNode.Attributes["href"].Value;
 
                 if (!image_page.Contains(album_name))
                     continue;
@@ -135,7 +146,6 @@ namespace BulkMediaDownloader.MediaSources
                 Uri link = new Uri(address_root + image_page);
                 if (!image_pages.Contains(link))
                 {
-
                     image_pages.Add(link);
                 }
             }
@@ -147,14 +157,23 @@ namespace BulkMediaDownloader.MediaSources
 
                 string page_content = GetPageContents(image_page);
 
-                if (image_download_regex.IsMatch(page_content))
+                HtmlDocument imageDoc = new HtmlDocument();
+
+                doc.LoadHtml(page_content);
+
+                HtmlNode imageNode= doc.DocumentNode.SelectSingleNode("//div[@class='container']//div[@class='boxbody']//img");
+
+
+                if (imageNode!=null)
                 {
-                    String value = image_download_regex.Match(page_content).Value;
+                    String value = imageNode.Attributes["src"].Value;
                     if(value.StartsWith(@"//"))
                     {
                         value = value.Replace(@"//", "http://");
                     }
                     output.Add(new MediaSourceResult(new Uri(value), image_page, this.url));
+                } else {
+                    throw new Exception("Image node not found");
                 }
 
             }

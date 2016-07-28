@@ -60,7 +60,7 @@ namespace BulkMediaDownloader.MediaSources
         void worker_DoWork(object sender, DoWorkEventArgs e)
         {
             UniqueQueue<Uri> pages = new UniqueQueue<Uri>();
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
+            //HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             Uri starting_page = new Uri(this.url.ToString());
 
@@ -78,31 +78,37 @@ namespace BulkMediaDownloader.MediaSources
                     worker.ReportProgress(100, "No Pages founds");
             }
 
-            double page_count = pages.Count, i = 0;
-            while(pages.Count > 0) {
-                Uri page = pages.Dequeue();
-
-                double divided = i / page_count;
-                int progress = (int)Math.Ceiling(divided * 100);
-
-                worker.ReportProgress(progress, "Getting items from page " + page.ToString() + " (" + (i + 1) + "/" + page_count + ")");
-                HashSet<MediaSourceResult> page_images = GetMediaFromPage(page, GetPageContents(page));
-                worker.ReportProgress(progress, page_images.Count + " items found");
-                foreach (MediaSourceResult media in page_images)
-                {
-                    output.Add(media);
-                }
-                i++;
+            List<Download.DownloadablesSource> output = new List<Download.DownloadablesSource>();
+            while(pages.Count>0) {
+                Download.DownloadablesSource source = new Download.DownloadablesSource(this.GetType().Name, this.url, pages.Dequeue());
+                output.Add(source);
             }
 
-            worker.ReportProgress(100, "Done fetching items, total images " + output.Count);
+            //double page_count = pages.Count, i = 0;
+            //while(pages.Count > 0) {
+            //    Uri page = pages.Dequeue();
+
+            //    double divided = i / page_count;
+            //    int progress = (int)Math.Ceiling(divided * 100);
+
+            //    worker.ReportProgress(progress, "Getting items from page " + page.ToString() + " (" + (i + 1) + "/" + page_count + ")");
+            //    HashSet<MediaSourceResult> page_images = GetMediaFromPage(page, GetPageContents(page));
+            //    worker.ReportProgress(progress, page_images.Count + " items found");
+            //    foreach (MediaSourceResult media in page_images)
+            //    {
+            //        output.Add(media);
+            //    }
+            //    i++;
+            //}
+
+            //worker.ReportProgress(100, "Done fetching items, total images " + output.Count);
 
             e.Result = output;
         }
 
 
         abstract protected HashSet<Uri> GetPages(Uri page_url, String page_contents);
-        abstract protected HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents);
+        abstract public HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url);
 
         public void Start()
         {

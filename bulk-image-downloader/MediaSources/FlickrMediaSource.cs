@@ -15,7 +15,8 @@ namespace BulkMediaDownloader.MediaSources
         //https://www.flickr.com/photos/29383501@N08/
         private String base_url;
         private static Regex address_regex = new Regex(@"https?://(?:www\.)?flickr\.com/photos/([^/]+)/?");
-        private string album_name, user_id;
+        private static Regex api_key_regex = new Regex(@"root\.YUI_config\.flickr\.api\.site_key = ""([^""]+)"";");
+        private string album_name, user_id, api_key;
 
         private const  int MAX_PER_PAGE = 500;
 
@@ -27,10 +28,10 @@ namespace BulkMediaDownloader.MediaSources
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             setAlbumName(url);
+            worker.ReportProgress(-1, "Flickr API key: " + api_key);
         }
 
         public override string getFolderNameFromURL(Uri url) {
-            setAlbumName(url);
             return album_name;
         }
 
@@ -38,6 +39,11 @@ namespace BulkMediaDownloader.MediaSources
             if (!address_regex.IsMatch(url.ToString())) {
                 throw new Exception("Flickr url not understood");
             }
+            String content = GetPageContents(url);
+            if (!api_key_regex.IsMatch(content))
+                throw new Exception("Could not find API key");
+            api_key = api_key_regex.Match(content).Groups[1].Value;
+
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             this.base_url = address_matches[0].Value;
             this.user_id= address_matches[0].Groups[1].Value;
@@ -60,11 +66,11 @@ namespace BulkMediaDownloader.MediaSources
 
         private Uri getPhotoSizesRestUrl(String photo_id) {
             //https://api.flickr.com/services/rest?photo_id=8130487218&hermes=1&sort=date_asc&viewerNSID=&method=flickr.photos.getSizes&csrf=&api_key=05535513bb59b9f37a1983a932cdcd10&format=json&hermesClient=1&nojsoncallback=1
-            return new Uri(@"https://api.flickr.com/services/rest?photo_id=" + photo_id + "&hermes=1&sort=date_asc&viewerNSID=&method=flickr.photos.getSizes&csrf=&api_key=05535513bb59b9f37a1983a932cdcd10&format=json&hermesClient=1&nojsoncallback=1");
+            return new Uri(@"https://api.flickr.com/services/rest?photo_id=" + photo_id + "&hermes=1&sort=date_asc&viewerNSID=&method=flickr.photos.getSizes&csrf=&api_key=" + api_key + "&format=json&hermesClient=1&nojsoncallback=1");
         }
         private Uri getPhotoStreamRestUrl(String user_id, int page = 1, int per_page = 50) {
             //https://api.flickr.com/services/rest?per_page=500&page=1&get_user_info=1&user_id=29383501%40N08&view_as=use_pref&sort=use_pref&viewerNSID=&method=flickr.people.getPhotos&csrf=&api_key=05535513bb59b9f37a1983a932cdcd10&format=json&hermes=1&hermesClient=1&reqId=8e9b36d1&nojsoncallback=1
-            return new Uri(@"https://api.flickr.com/services/rest?per_page=" + per_page + "&page=" + page + "&get_user_info=1&user_id=" + user_id + "&view_as=use_pref&sort=use_pref&viewerNSID=&method=flickr.people.getPhotos&csrf=&api_key=05535513bb59b9f37a1983a932cdcd10&format=json&hermes=1&hermesClient=1&nojsoncallback=1");
+            return new Uri(@"https://api.flickr.com/services/rest?per_page=" + per_page + "&page=" + page + "&get_user_info=1&user_id=" + user_id + "&view_as=use_pref&sort=use_pref&viewerNSID=&method=flickr.people.getPhotos&csrf=&api_key=" + api_key + "&format=json&hermes=1&hermesClient=1&nojsoncallback=1");
         }
 
         protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
@@ -85,7 +91,8 @@ namespace BulkMediaDownloader.MediaSources
         }
 
 
-        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents) {
+        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
+            String page_contents = this.GetPageContents(page_url);
             HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             Dictionary<string, dynamic> stream_values = filterFlickrResponse(page_contents);

@@ -15,16 +15,16 @@ namespace BulkMediaDownloader.MediaSources
 {
     public class TumblrMediaSource : AMediaSource
     {
-        private readonly static Regex root_name = new Regex("http://((.+)\\.com)/archive/");
+        private readonly static Regex root_name = new Regex(@"http://(([^""/]+)\.com)/archive/");
         private readonly static Regex next_page_regex = new Regex(@"href=""(/archive/\?before_time=\d+)""");
 
-        private readonly static Regex post_regex = new Regex(@"href=""(http://.+\.com/post/[^""]+)""");
+        private readonly static Regex post_regex = new Regex(@"href=""(http://[^""/]+\.com/post/[^""]+)""");
         //private readonly static Regex post_type_regex = new Regex(@"<meta property=""og:type"" content=""([^""]+)""");
 
-        private readonly static Regex image_page_regex = new Regex(@"href=""(http://.+\.com/image/[^\""]+)\""");
+        private readonly static Regex image_page_regex = new Regex(@"href=""(http://[^""/]+\.com/image/[^\""]+)\""");
 
         private readonly static Regex video_iframe_regex = new Regex(@"<iframe src=[""']([^'""]+)[""'] style=[""'][^'""]+[""'] class='[^'""]+tumblr_video[^'""]+['""]");
-        private readonly static Regex video_source_regex = new Regex(@"<source src=""(https?://.+\.com/video_file/[^\""]+)\""");
+        private readonly static Regex video_source_regex = new Regex(@"<source src=""(https?://[^""/]+\.com/video_file/[^\""]+)\""");
 
         private readonly static Regex instagram_embed_regex = new Regex(@"instagram\.com/[^/]+/[^/]+/embed/");
 
@@ -114,8 +114,9 @@ namespace BulkMediaDownloader.MediaSources
 
         private List<String> already_checked = new List<string>();
 
-        protected override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url, String page_contents)
+        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url)
         {
+            String page_contents = this.GetPageContents(page_url);
             HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
             MatchCollection mc = post_regex.Matches(page_contents);
@@ -188,13 +189,17 @@ namespace BulkMediaDownloader.MediaSources
                 HtmlDocument htmlDoc = new HtmlDocument();
                 htmlDoc.LoadHtml(post_page_contents);
                 HtmlNode typeNode = htmlDoc.DocumentNode.SelectSingleNode("//meta[@property='og:type']");
+                String postType;
                 if (typeNode == null)
                 {
-                    throw new Exception("Cannot find post type for page: " + post_url);
+                    //throw new Exception("Cannot find post type for page: " + post_url);
+                    postType = "tumblr-feed:photo";
+                } else {
+                    postType = typeNode.Attributes["content"].Value;
                 }
 
 
-                switch (typeNode.Attributes["content"].Value)
+                switch (postType)
                 {
                     case "tumblr-feed:entry":
                     case "tumblr-feed:conversation":
