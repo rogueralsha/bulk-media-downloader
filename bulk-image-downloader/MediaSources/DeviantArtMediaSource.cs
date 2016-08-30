@@ -13,9 +13,9 @@ using HtmlAgilityPack;
 
 namespace BulkMediaDownloader.MediaSources {
     public class DeviantArtMediaSource : AMediaSource {
-        private readonly static Regex root_name = new Regex("http://(([^.]+)\\.deviantart\\.com)/gallery/");
+        private readonly static Regex root_name = new Regex("https?://(([^.]+)\\.deviantart\\.com)/gallery/");
         private readonly static Regex next_page_regex = new Regex("href=\"(/gallery/?.*?offset=(\\d+)[^\"]*)\"");
-        private readonly static Regex image_link_regex = new Regex("http://[^/]+/art/([^\"#]+)");
+        private readonly static Regex image_link_regex = new Regex("https?://[^/]+/art/([^\"#]+)");
 
 
         // This matches against the data that powers the "full image" when you click on an image
@@ -41,17 +41,21 @@ namespace BulkMediaDownloader.MediaSources {
             }
         }
 
+        public static bool ValidateUrl(Uri url) {
+            return root_name.IsMatch(url.ToString());
+        }
 
         public DeviantArtMediaSource(Uri url)
             : base(url) {
             // Deviantart is difficult. We retry a lot, and we wait a lot.
-            this.WebRequestWaitTime = 2000;
-            this.WebRequestErrorAdditionalWaitTime = 20000; //Seriously, sometimes this isn't even enough
+            this.WebRequestWaitTime = 100;
+            this.WebRequestErrorAdditionalWaitTime = 1000; //Seriously, sometimes this isn't even enough
+            this.RandomWaitTime = 100;
             this.WebRequestRetryCount = 10;
 
             this.LoginURL = @"http://www.deviantart.com/";
-            if (!root_name.IsMatch(url.ToString())) {
-                throw new Exception("DeviantArt URL not understood");
+            if (!ValidateUrl(url)) {
+                throw new UrlNotRecognizedException("DeviantArt URL not understood");
             }
             MatchCollection address_matches = root_name.Matches(url.ToString());
             address_root = address_matches[0].Groups[1].Value;
@@ -61,14 +65,29 @@ namespace BulkMediaDownloader.MediaSources {
 
         public override string getFolderNameFromURL(Uri url) {
             if (!root_name.IsMatch(url.ToString())) {
-                throw new Exception("DeviantArt URL not understood");
+                throw new UrlNotRecognizedException("DeviantArt URL not understood");
             }
             MatchCollection address_matches = root_name.Matches(url.ToString());
             string album_name = address_matches[0].Groups[2].Value;
             return album_name;
         }
 
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url,string page_contents, string stage) {
+            switch(stage) {
+                case INITIAL_STAGE:
+                    return GetGalleryPages(url, page_contents);
+                case "gallery":
+                    return GetImagePages(url, page_contents);
+                case "image":
+                    return GetImages(url, page_contents);
+                default:
+                    throw new NotSupportedException(stage);
+            }
+        }
+
+        private MediaSourceResults GetGalleryPages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+
             SortedDictionary<int, Uri> candidates = new SortedDictionary<int, Uri>();
             Queue<Uri> to_check = new Queue<Uri>();
 
@@ -83,7 +102,7 @@ namespace BulkMediaDownloader.MediaSources {
                     Uri uri = new Uri(tmp);
                     int offset = int.Parse(m.Groups[2].Value);
                     if (!candidates.ContainsValue(uri) && !candidates.ContainsKey(offset)) {
-                        worker.ReportProgress(-1, "Found page: " + uri.ToString());
+                        sendStatus("Found page: " + uri.ToString());
                         candidates.Add(offset, uri);
                         to_check.Enqueue(uri);
                     }
@@ -98,32 +117,27 @@ namespace BulkMediaDownloader.MediaSources {
                 }
             }
 
-
-
-            already_checked = new List<string>();
-
             if (candidates.Count == 0)
                 candidates.Add(0, page_url);
 
-            HashSet<Uri> output = new HashSet<Uri>();
+            foreach(Uri uri in candidates.Values) {
+                MediaSourceResult result = new MediaSourceResult(uri, page_url, this.url, this, MediaResultType.DownloadSource, "gallery");
+                output.Add(result);
+            }
+            return output;
+        }
 
-            foreach (Uri uri in candidates.Values) {
-                worker.ReportProgress(-1, "Fetching image pages from " +uri.ToString());
-                String imagePageContents = this.GetPageContents(uri);
-                MatchCollection imc = image_link_regex.Matches(imagePageContents);
+        private MediaSourceResults GetImagePages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+                sendStatus("Fetching image pages from " + page_url.ToString());
+                MatchCollection imc = image_link_regex.Matches(page_contents);
                 foreach (Match m in imc) {
                     if (!m.Value.Contains(address_root)) {
                         continue;
                     }
-                    if (already_checked.Contains(m.Value)) {
-                        continue;
-                    }
-                    already_checked.Add(m.Value);
                     Uri image_page_url = new Uri(m.Value);
-                    if (!output.Contains(image_page_url))
-                        output.Add(image_page_url);
-                }
-
+                MediaSourceResult result = new MediaSourceResult(image_page_url, page_url, this.url, this, MediaResultType.DownloadSource, "image");
+                output.Add(result);
             }
             return output;
         }
@@ -131,9 +145,8 @@ namespace BulkMediaDownloader.MediaSources {
 
         private List<String> already_checked = new List<string>();
 
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
+        private MediaSourceResults GetImages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
             String image_page_contents = GetPageContents(page_url, page_url);
 
             String image_url = null;
@@ -153,8 +166,8 @@ namespace BulkMediaDownloader.MediaSources {
                     if ((int)ex.Status >= 400 && (int)ex.Status < 500) {
                         throw ex;
                     } else {
-                        this.worker.ReportProgress(-1, "Error while attempting to get download link");
-                        this.worker.ReportProgress(-1, ex);
+                        sendStatus("Error while attempting to get download link");
+                        sendStatus(ex);
                         return output;
                     }
                 }
@@ -168,20 +181,17 @@ namespace BulkMediaDownloader.MediaSources {
             } else {
                 //string temp = Path.GetTempFileName();
                 //System.IO.File.WriteAllLines(temp, image_page_contents.Split('\n'));
-                this.worker.ReportProgress(-1, "Image URL not found on " + page_url.ToString());
+                sendStatus("Image URL not found on " + page_url.ToString());
                 return output;
             }
 
             Uri uri = new Uri(image_url);
-            worker.ReportProgress(-1, "Found image: " + uri.ToString());
-            output.Add(new MediaSourceResult(uri, page_url, this.url));
-
+            sendStatus("Found image: " + uri.ToString());
+            output.Add(new MediaSourceResult(uri, page_url, this.url, this, MediaResultType.Download));
 
             return output;
 
         }
-
-
 
     }
 }

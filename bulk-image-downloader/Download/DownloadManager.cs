@@ -8,6 +8,11 @@ using System.Collections.ObjectModel;
 using System.Xml;
 using System.Xml.Serialization;
 using System.IO;
+using Microsoft.EntityFrameworkCore;
+using BulkMediaDownloader.MediaSources;
+using BulkMediaDownloader.Model;
+using System.ComponentModel.DataAnnotations.Schema;
+
 
 namespace BulkMediaDownloader.Download {
 
@@ -90,8 +95,18 @@ namespace BulkMediaDownloader.Download {
                 return output;
             }
         }
-        public DownloadManager() {
 
+        public DownloadManager() {
+            using(BulkMediaDownloader.Model.DatabaseContext db = new Model.DatabaseContext()) {
+                foreach (DownloadablesSource d in db.DownloadableSources.ToList<DownloadablesSource>()) {
+                    d.WorkComplete += Source_WorkComplete;
+                    this.Add(d);                    
+                }
+                foreach (Downloadable d in db.Downloadables.ToList<Downloadable>()) {
+                    d.WorkComplete += Source_WorkComplete;
+                    this.Add(d);
+                }
+            }
 
             supervisor_thread = new Thread(Supervise);
             this.CollectionChanged += DownloadManager_CollectionChanged;
@@ -141,7 +156,7 @@ namespace BulkMediaDownloader.Download {
                     bool source_downloading = false;
                     for (int i = 0; i < this.Count; i++) {
                         if (this[i].State == DownloadState.Downloading) {
-                            switch (this[i].Type) {
+                            switch (this[i].DataType) {
                                 case DownloadType.Source:
                                     source_downloading = true;
                                     break;
@@ -154,7 +169,7 @@ namespace BulkMediaDownloader.Download {
                     }
                     for (int i = 0; i < this.Count; i++) {
                         if (this[i].State == DownloadState.Pending) {
-                            switch (this[i].Type) {
+                            switch (this[i].DataType) {
                                 case DownloadType.Source:
                                     if (!source_downloading)
                                         startDownload(this[i]);
@@ -172,6 +187,14 @@ namespace BulkMediaDownloader.Download {
                 }
                 Thread.Sleep(50);
             }
+            lock(this) {
+                for (int i = 0; i < this.Count; i++) {
+                    if (this[i].State == DownloadState.Downloading) {
+                        this[i].Pause();
+                    }
+                }
+            }
+
         }
 
         private void startDownload(ADownloadable downlodable) {
@@ -180,23 +203,11 @@ namespace BulkMediaDownloader.Download {
                     DownloadablesSource ds = downlodable as DownloadablesSource;
                     if (downlodable.RequiresLogin && CredentialsProvider != null) {
                         if (!CredentialsProvider.getCredentials(ds.MediaSource))
+                            downlodable.Pause();
                             return;
                     }
-
                 }
-
                 downlodable.Start();
-            }));
-        }
-
-        public void AddDownloadsSource(DownloadablesSource source, string download_dir) {
-            source.DownloadDir = download_dir;
-            source.PropertyChanged += this.Down_PropertyChanged;
-            source.WorkComplete += Source_WorkComplete;
-            App.Current.Dispatcher.Invoke((Action)(() => {
-                lock (this) {
-                    this.Add(source);
-                }
             }));
         }
 
@@ -204,24 +215,42 @@ namespace BulkMediaDownloader.Download {
             if (results != null) {
                 if (results is HashSet<MediaSources.MediaSourceResult>) {
                     foreach (MediaSources.MediaSourceResult result in (HashSet<MediaSources.MediaSourceResult>)results) {
-                        DownloadMedia(result, sender.DownloadDir);
+                        AddMediaSourceResult(result, sender.DownloadDir);
                     }
                 }
             }
         }
 
-        public void DownloadMedia(MediaSources.MediaSourceResult media, string download_dir) {
-            Downloadable down = new Downloadable(media.URL, media.Referrer, download_dir);
-            down.Type = DownloadType.Binary;
-            down.Site = media.Site;
-            down.SimpleHeaders = media.SimpleHeaders;
-            down.PropertyChanged += this.Down_PropertyChanged;
+        public void AddMediaSourceResult(MediaSources.MediaSourceResult media, string download_dir) {
+            ADownloadable down;
+            switch (media.Type) {
+                case MediaSources.MediaResultType.Download:
+                    Downloadable downloadable = new Downloadable(media.URL, media.Referrer, download_dir);
+                    downloadable.DataType = DownloadType.Binary;
+                    downloadable.Site = media.Site;
+                    downloadable.SimpleHeaders = media.SimpleHeaders;
+                    downloadable.PropertyChanged += this.Down_PropertyChanged;
+                    down = downloadable;
+                    break;
+                case MediaSources.MediaResultType.DownloadSource:
+                    DownloadablesSource ds = new DownloadablesSource(media.MediaSource, media.Stage, media.Site, media.URL, media.Referrer);
+                    ds.DownloadDir = download_dir;
+                    ds.PropertyChanged += this.Down_PropertyChanged;
+                    ds.WorkComplete += Source_WorkComplete;
+                    down = ds;
+                    break;
+                default:
+                    throw new NotSupportedException(media.Type.ToString());
+            }
+
             App.Current.Dispatcher.Invoke((Action)(() => {
-                lock (this) {
+                if (!this.Contains(down)) {
                     this.Add(down);
+                    down.Save();
                 }
             }));
         }
+
 
 
         //public Downloadable AddDownloadable(Uri url, string download_dir, string source, DownloadType type) {
@@ -247,7 +276,7 @@ namespace BulkMediaDownloader.Download {
 
         #region INotify Implementation
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public new event PropertyChangedEventHandler PropertyChanged;
 
         private void NotifyPropertyChanged(String propertyName = "") {
             if (PropertyChanged != null) {
@@ -261,36 +290,27 @@ namespace BulkMediaDownloader.Download {
             lock (this) {
                 for (int i = 0; i < this.Count; i++) {
                     try {
-
                         this[i].Pause();
+                        this[i].Delete();
                     } catch { }
                 }
                 this.Clear();
             }
-            SaveAll();
         }
 
         public void ClearCompleted() {
-            lock (this) {
-                for (int i = 0; i < this.Count; i++) {
-                    if (this[i].State == DownloadState.Complete || this[i].State == DownloadState.Skipped) {
-                        this.RemoveAt(i);
-                        i--;
+                using (DatabaseContext db = new DatabaseContext()) {
+
+                    for (int i = 0; i < this.Count; i++) {
+                        if (this[i].State == DownloadState.Complete || this[i].State == DownloadState.Skipped) {
+                            db.Remove(this[i], false);
+                            this.RemoveAt(i);
+                            i--;
+                        }
                     }
+                    db.SaveChangesAsync();
                 }
-            }
-            SaveAll();
             notifyProgressProperties();
-        }
-
-        public void SaveAll() {
-            XmlSerializer x = new XmlSerializer(this.GetType());
-            StringBuilder sb = new StringBuilder();
-            using (StringWriter sw = new StringWriter(sb)) {
-                x.Serialize(sw, this);
-            }
-
-            Properties.Settings.Default.Save();
         }
 
         public void RestartFailed() {
@@ -298,10 +318,10 @@ namespace BulkMediaDownloader.Download {
                 for (int i = 0; i < this.Count; i++) {
                     if (this[i].State == DownloadState.Error) {
                         this[i].Reset();
+                        this[i].Save();
                     }
                 }
             }
-            SaveAll();
         }
 
         public void RestartAll() {
@@ -310,10 +330,10 @@ namespace BulkMediaDownloader.Download {
                     if (this[i].State == DownloadState.Error ||
                         this[i].State == DownloadState.Paused) {
                         this[i].Reset();
+                        this[i].Save();
                     }
                 }
             }
-            SaveAll();
         }
 
         public void PauseAll() {
@@ -322,12 +342,12 @@ namespace BulkMediaDownloader.Download {
                     if (this[i].State == DownloadState.Pending ||
                         this[i].State == DownloadState.Downloading) {
                         this[i].Pause();
+                        this[i].Save();
                     }
                 }
             }
-            SaveAll();
         }
-
+        
 
     }
 }

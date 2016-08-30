@@ -6,6 +6,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+using BulkMediaDownloader.Model;
 
 namespace BulkMediaDownloader.Download {
     public enum DownloadState {
@@ -25,8 +29,12 @@ namespace BulkMediaDownloader.Download {
     [Serializable]
     [XmlInclude(typeof(Downloadable))]
     [XmlInclude(typeof(DownloadablesSource))]
-    public abstract class ADownloadable: INotifyPropertyChanged {
-        public DownloadType Type = DownloadType.Binary;
+    public abstract class ADownloadable: INotifyPropertyChanged, IDisposable {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public Guid Id { get; set; }
+
+        public DownloadType DataType = DownloadType.Binary;
 
         public String DownloadDir { get; set; }
 
@@ -47,6 +55,7 @@ namespace BulkMediaDownloader.Download {
         }
 
         [XmlIgnore]
+        [NotMapped]
         public Uri URL { get; protected set; }
         public String URLString {
             get {
@@ -58,6 +67,7 @@ namespace BulkMediaDownloader.Download {
         }
 
         [XmlIgnore]
+        [NotMapped]
         public string StateText {
             get {
                 return State.ToString();
@@ -65,6 +75,7 @@ namespace BulkMediaDownloader.Download {
         }
 
         [XmlIgnore]
+        [NotMapped]
         public string ExtraInfo {
             get {
                 return this.URL.ToString() + Environment.NewLine + this.Error;
@@ -74,6 +85,7 @@ namespace BulkMediaDownloader.Download {
 
         private Exception _except = null;
         [XmlIgnore]
+        [NotMapped]
         public Exception Exception {
             get {
                 return _except;
@@ -85,9 +97,20 @@ namespace BulkMediaDownloader.Download {
             }
 
         }
-
+        [XmlIgnore]
+        [NotMapped]
+        public abstract int Progress { get; }
 
         [XmlIgnore]
+        [NotMapped]
+        public virtual string ProgressText {
+            get {
+                return this.State.ToString();
+            }
+        }
+
+        [XmlIgnore]
+        [NotMapped]
         public String Error {
             get {
                 if (_except != null) {
@@ -99,6 +122,7 @@ namespace BulkMediaDownloader.Download {
         }
 
         [XmlIgnore]
+        [NotMapped]
         public abstract bool RequiresLogin { get; }
 
         BackgroundWorker worker = new BackgroundWorker();
@@ -113,6 +137,7 @@ namespace BulkMediaDownloader.Download {
                 this.State = DownloadState.Error;
                 this._except = e.Error;
             } else {
+                if(WorkComplete!=null)
                 WorkComplete(this, e.Result);
             }
         }
@@ -148,5 +173,35 @@ namespace BulkMediaDownloader.Download {
 
         #endregion
 
+        public abstract void Dispose();
+
+        public override int GetHashCode() {
+            return URL.GetHashCode();
+        }
+
+        public override bool Equals(object obj) {
+            if (obj == null)
+                return false;
+            if (!(obj is ADownloadable))
+                return false;
+
+            ADownloadable other = obj as ADownloadable;
+            return this.URL.Equals(other.URL);
+        }
+
+        public void Save() {
+            using (DatabaseContext db = new DatabaseContext()) {
+                if (this.Id == Guid.Empty)
+                    db.Add(this);
+                else
+                    db.Update(this);
+            }
+        }
+
+        public void Delete() {
+            using (DatabaseContext db = new DatabaseContext()) {
+                db.Remove(this);
+            }
+        }
     }
 }

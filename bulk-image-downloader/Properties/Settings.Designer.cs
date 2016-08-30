@@ -49,18 +49,6 @@ namespace BulkMediaDownloader.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool DetectAdditionalPages {
-            get {
-                return ((bool)(this["DetectAdditionalPages"]));
-            }
-            set {
-                this["DetectAdditionalPages"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("C:\\Users\\sanmadjack.FORTAWESOME\\Desktop\\TEST")]
         public string LastDownloadDir {
             get {
@@ -68,17 +56,6 @@ namespace BulkMediaDownloader.Properties {
             }
             set {
                 this["LastDownloadDir"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public global::BulkMediaDownloader.Download.DownloadManager Downloads {
-            get {
-                return ((global::BulkMediaDownloader.Download.DownloadManager)(this["Downloads"]));
-            }
-            set {
-                this["Downloads"] = value;
             }
         }
         

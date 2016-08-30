@@ -32,12 +32,16 @@ namespace BulkMediaDownloader.MediaSources
             }
         }
 
+        public static bool ValidateUrl(Uri url) {
+            return address_regex.IsMatch(url.ToString());
+        }
+
         public HentaiFoundryMediaSource(Uri url)
             : base(url) {
             this.WebRequestWaitTime = 200;
             this.LoginURL = @"http://www.hentai-foundry.com/";
 
-            if (!address_regex.IsMatch(url.ToString())) {
+            if (!ValidateUrl(url)) {
                 throw new Exception("Hentai Foundry URL not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
@@ -79,15 +83,27 @@ namespace BulkMediaDownloader.MediaSources
             return total_pages;
         }
 
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url, string page_contents, string stage) {
+            switch (stage) {
+                case INITIAL_STAGE:
+                    return GetGalleryPages(url, page_contents);
+                case "gallery":
+                    return GetImagePages(url, page_contents);
+                case "image":
+                    return GetImages(url, page_contents);
+                default:
+                    throw new NotSupportedException(stage);
+            }
+        }
+
+        private MediaSourceResults GetGalleryPages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
             bool new_max_found = true;
             int total_pages = 0;
 
             string test_url = url.ToString();
 
             while (new_max_found) {
-                IfPausedWaitUntilUnPaused();
                 new_max_found = false;
 
                 int test = GetHighestPageNumber(page_contents);
@@ -102,22 +118,18 @@ namespace BulkMediaDownloader.MediaSources
 
             //(.+)/post/list/([^/]+/)?(\d+)
             for (int i = 1; i <= total_pages; i++) {
-                IfPausedWaitUntilUnPaused();
 
                 test_url = query_root + @"/page/" + i.ToString();
 
-                output.Add(new Uri(test_url));
+                output.Add(new MediaSourceResult(new Uri(test_url),null, this.url, this, MediaResultType.DownloadSource, "gallery"));
             }
             return output;
 
         }
 
 
-        public  override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
-            List<Uri> image_pages = new List<Uri>();
+        private MediaSourceResults GetImagePages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
 
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(page_contents);
@@ -125,13 +137,9 @@ namespace BulkMediaDownloader.MediaSources
 
             HtmlNodeCollection imagePageNodes = doc.DocumentNode.SelectNodes("//img[@class='thumb']");
 
-            foreach (HtmlNode node in imagePageNodes)
-            {
-                IfPausedWaitUntilUnPaused();
-
-
+            foreach (HtmlNode node in imagePageNodes) {
                 HtmlNode linkNode = node.ParentNode;
-                if(linkNode.Name.ToLower()!="a") {
+                if (linkNode.Name.ToLower() != "a") {
                     throw new Exception("Found a thumbnail without a link");
                 }
 
@@ -144,24 +152,20 @@ namespace BulkMediaDownloader.MediaSources
                     continue;
 
                 Uri link = new Uri(address_root + image_page);
-                if (!image_pages.Contains(link))
-                {
-                    image_pages.Add(link);
-                }
+
+                output.Add(new MediaSourceResult(link, page_url, this.url, this, MediaResultType.DownloadSource, "image"));
             }
 
-            foreach(Uri image_page in image_pages)
-            {
-                IfPausedWaitUntilUnPaused();
+            return output;
+        }
 
+        private MediaSourceResults GetImages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+            HtmlDocument imageDoc = new HtmlDocument();
 
-                string page_content = GetPageContents(image_page);
+                imageDoc.LoadHtml(page_contents);
 
-                HtmlDocument imageDoc = new HtmlDocument();
-
-                doc.LoadHtml(page_content);
-
-                HtmlNode imageNode= doc.DocumentNode.SelectSingleNode("//div[@class='container']//div[@class='boxbody']//img");
+                HtmlNode imageNode= imageDoc.DocumentNode.SelectSingleNode("//div[@class='container']//div[@class='boxbody']//img");
 
 
                 if (imageNode!=null)
@@ -171,14 +175,11 @@ namespace BulkMediaDownloader.MediaSources
                     {
                         value = value.Replace(@"//", "http://");
                     }
-                    output.Add(new MediaSourceResult(new Uri(value), image_page, this.url));
+                    output.Add(new MediaSourceResult(new Uri(value), page_url, this.url, this, MediaResultType.Download));
                 } else {
                     throw new Exception("Image node not found");
                 }
-
-            }
             return output;
-
         }
 
 

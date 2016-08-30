@@ -7,41 +7,32 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace BulkMediaDownloader.Download {
     [Serializable]
     public class DownloadablesSource : ADownloadable {
 
-        public String MediaSourceName;
+        public String MediaSourceName { get; set; }
 
+        public String SourceStage { get; set; }
 
         private AMediaSource _MediaSource;
+
         [XmlIgnore]
+        [NotMapped]
         public AMediaSource MediaSource {
             get {
                 if (_MediaSource == null) {
-                    switch (MediaSourceName) {
-                        case "ShimmieMediaSource":
-                            _MediaSource = new ShimmieMediaSource(this.SourceURL);
-                            break;
-                        case "DeviantArtMediaSource":
-                            _MediaSource = new DeviantArtMediaSource(this.SourceURL);
-                            break;
-                        case "TumblrMediaSource":
-                            _MediaSource = new TumblrMediaSource(this.SourceURL);
-                            break;
-                        case "HentaiFoundryMediaSource":
-                            _MediaSource = new HentaiFoundryMediaSource(this.SourceURL);
-                            break;
-                        default:
-                            throw new NotSupportedException();
-                    }
+                    _MediaSource = MediaSourceManager.GetMediaSourceForUrl(this.SourceURL);
                 }
                 return _MediaSource;
             }
         }
 
         [XmlIgnore]
+        [NotMapped]
         public override bool RequiresLogin {
             get {
                 return MediaSource.RequiresLogin;
@@ -50,6 +41,7 @@ namespace BulkMediaDownloader.Download {
 
 
         [XmlIgnore]
+        [NotMapped]
         public string FileName {
             get {
                 return this.URLString;
@@ -57,6 +49,23 @@ namespace BulkMediaDownloader.Download {
         }
 
         [XmlIgnore]
+        [NotMapped]
+        public Uri RefererURL { get; protected set; }
+        public String RefererURLString {
+            get {
+                if (RefererURL == null)
+                    return String.Empty;
+                return RefererURL.ToString();
+            }
+            set {
+                if (String.IsNullOrEmpty(value))
+                    RefererURL = null;
+                else
+                    RefererURL = new Uri(value);
+            }
+        }
+        [XmlIgnore]
+        [NotMapped]
         public Uri SourceURL { get; protected set; }
         public String SourceURLString {
             get {
@@ -67,29 +76,45 @@ namespace BulkMediaDownloader.Download {
             }
         }
 
-        public DownloadablesSource() {
-            this.Type = DownloadType.Source;
+        [XmlIgnore]
+        [NotMapped]
+        public override int Progress {
+            get {
+                if (State == DownloadState.Complete || State == DownloadState.Skipped) {
+                    return 100;
+                }
+                    return 0;
+            }
         }
 
-        public DownloadablesSource(String MediaSourceName, Uri source_uri, Uri uri): this() {
+
+
+        public DownloadablesSource() {
+            this.DataType = DownloadType.Source;
+        }
+
+        public DownloadablesSource(AMediaSource MediaSource, String stage, Uri source_uri, Uri uri, Uri referer_uri) : 
+            this(MediaSource.GetType().Name, stage, source_uri, uri, referer_uri) {
+            this._MediaSource = MediaSource;
+        }
+
+
+
+        public DownloadablesSource(String MediaSourceName, String stage, Uri source_uri, Uri uri, Uri referer_uri) : this() {
             this.MediaSourceName = MediaSourceName;
             this.URL = uri;
+            this.SourceStage = stage;
             this.SourceURL = source_uri;
+            this.RefererURL = referer_uri;
         }
 
         protected override object DownloadThread() {
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
             AMediaSource source = MediaSource;
 
-            HashSet<MediaSourceResult> page_images =
-                source.GetMediaFromPage(this.URL);
+            MediaSourceResults page_images = source.ProcessDownloadSource(this.URL, this.RefererURL, this.SourceStage);
 
-            foreach (MediaSourceResult media in page_images) {
-                output.Add(media);
-            }
             this.State = DownloadState.Complete;
-            return output;
+            return page_images;
         }
 
         public override void Pause() {
@@ -99,6 +124,20 @@ namespace BulkMediaDownloader.Download {
 
         public override void Reset() {
             this.State = DownloadState.Pending;
+        }
+
+        public override void Dispose() {
+        }
+
+        public override bool Equals(object obj) {
+            bool result = base.Equals(obj);
+
+            if (obj is DownloadablesSource && result) {
+                DownloadablesSource other = obj as DownloadablesSource;
+                return this.SourceStage.Equals(other.SourceStage);
+            }
+
+            return result;
         }
     }
 }

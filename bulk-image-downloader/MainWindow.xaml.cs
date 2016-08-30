@@ -24,22 +24,19 @@ namespace BulkMediaDownloader {
     /// </summary>
     public partial class MainWindow : RibbonWindow, IGetCredentials {
 
-        DownloadManager manager {
-            get {
-                if (Properties.Settings.Default.Downloads == null) {
-                    DownloadManager dm = new DownloadManager();
-                    Properties.Settings.Default.Downloads = dm;
-                    dm.SaveAll();
-                }
-                return Properties.Settings.Default.Downloads;
-            }
-        }
-        private Queue<UrlToProcess> urls = new Queue<UrlToProcess>();
+        DownloadManager manager { get; set; }
+        private Queue<Uri> urls = new Queue<Uri>();
 
         public MainWindow() {
             InitializeComponent();
-            Cef.Initialize(new CefSettings());
+            Cef.Initialize(new CefSettings());            
             DownloadManager.CredentialsProvider = this;
+            manager = new DownloadManager();
+            MediaSourceManager.MediaSourceStatusChanged += Manager_MediaSourceStatusChanged;
+        }
+
+        private void Manager_MediaSourceStatusChanged(object sender, MediaSourceEventArgs e) {
+            WriteMessageToLog(e.Message);
         }
 
         private void DaWindow_Loaded(object sender, RoutedEventArgs e) {
@@ -57,6 +54,8 @@ namespace BulkMediaDownloader {
                 this.Close();
             }
         }
+
+
 
         private bool setDownloadFolder() {
             CommonOpenFileDialog dlg = new CommonOpenFileDialog();
@@ -82,14 +81,13 @@ namespace BulkMediaDownloader {
             return true;
         }
 
-        private bool processing = false;
         private void startProcess() {
             while (urls.Count > 0) {
-                UrlToProcess url = urls.Dequeue();
+                Uri url = urls.Dequeue();
 
                 AMediaSource source = null;
 
-                statusLabel.Content = "Loading images from " + url.url.ToString();
+                statusLabel.Content = "Loading images from " + url.ToString();
                 try {
                     if (String.IsNullOrWhiteSpace(Properties.Settings.Default.LastDownloadDir) ||
                         !System.IO.Directory.Exists(Properties.Settings.Default.LastDownloadDir)) {
@@ -99,58 +97,14 @@ namespace BulkMediaDownloader {
 
                     string download_dir = Properties.Settings.Default.LastDownloadDir; ;
 
-                    switch (url.image_source_name) {
-                        case "shimmie":
-                            source = new ShimmieMediaSource(url.url);
-                            break;
-                        case "flickr":
-                            source = new FlickrMediaSource(url.url);
-                            break;
-                        //case "juicebox":
-                        //source = new JuiceBoxImageSource(url.url);
-                        //break;
-                        case "nextgen":
-                            source = new NextGENMediaSource(url.url);
-                            break;
-                        case "deviantart":
-                            source = new DeviantArtMediaSource(url.url);
-                            break;
-                        case "tumblr":
-                            source = new TumblrMediaSource(url.url);
-                            break;
-                        case "hentaifoundry":
-                            source = new HentaiFoundryMediaSource(url.url);
-                            break;
-                        case "blogger":
-                            source = new BloggerMediaSource(url.url);
-                            break;
-                        case "artstation":
-                            source = new ArtstationMediaSource(url.url);
-                            break;
-                        case "sitemap":
-                            source = new SitemapMediaSource(url.url);
-                            break;
-                        case "pixiv":
-                            source = new PixivMediaSource(url.url);
-                            break;
-                        case "imagefap":
-                            source = new ImageFapMediaSource(url.url);
-                            break;
-                        case "cac":
-                            source = new ComicArtCommunityMediaSource(url.url);
-                            break;
-                        default:
-                            throw new Exception("URL Type not supported");
-                    }
+                    source = MediaSourceManager.GetMediaSourceForUrl(url);
 
-                    source.worker.ProgressChanged += Worker_ProgressChanged;
-
-
-                    if (source.RequiresLogin&&!this.getCredentials(source)) {
+                    if (source.RequiresLogin && !this.getCredentials(source)) {
                         return;
                     }
 
-                    string album_folder = source.getFolderNameFromURL(url.url);
+                    string album_folder = source.getFolderNameFromURL(url);
+
                     if (!string.IsNullOrWhiteSpace(album_folder)) {
                         download_dir = System.IO.Path.Combine(download_dir, album_folder);
                         if (!System.IO.Directory.Exists(download_dir)) {
@@ -158,45 +112,23 @@ namespace BulkMediaDownloader {
                         }
                     }
 
+
                     logText.AppendText("Using download location " + download_dir + Environment.NewLine);
 
+                    MediaSourceResult result = source.GetInitialStage();
 
-                    source.worker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(delegate (object sender, System.ComponentModel.RunWorkerCompletedEventArgs e) {
-                        if (e.Error != null) {
-                            ShowException(e.Error);
-                            if (urls.Count > 0) {
-                                startProcess();
-                                return;
-                            }
-                            processing = false;
-                            EnableInterface();
-                            return;
-                        }
+                    manager.AddMediaSourceResult(result, download_dir);
 
-                        List<Download.DownloadablesSource> sources = (List<Download.DownloadablesSource>)e.Result;
-                        foreach (DownloadablesSource downloadSource in sources) {
-                            manager.AddDownloadsSource(downloadSource,download_dir);
-                        }
-                        manager.SaveAll();
-
-                        if (urls.Count > 0) {
-                            startProcess();
-                            return;
-                        }
-
-                        statusLabel.Content = String.Empty;
-
-                        EnableInterface();
-                        processing = false;
-                    });
-
-                    source.Start();
-                    processing = true;
-
-                    break;
+                    statusLabel.Content = String.Empty;
 
                 } catch (Exception ex) {
                     ShowException(ex);
+                } finally {
+                    if (urls.Count > 0) {
+                        startProcess();                        
+                    } else {
+                        EnableInterface();
+                    }
                 }
             }
 
@@ -249,11 +181,19 @@ namespace BulkMediaDownloader {
                     ShowException((Exception)e.UserState, false);
                 } else {
                     if (!String.IsNullOrWhiteSpace(e.UserState.ToString())) {
-                        logText.AppendText(e.UserState.ToString() + Environment.NewLine);
-                        logText.ScrollToEnd();
+                        WriteMessageToLog(e.UserState.ToString());
                     }
                 }
             }
+        }
+
+        private void WriteMessageToLog(String message) {
+            App.Current.Dispatcher.Invoke((Action)(() => {
+                lock (logText) {
+                    logText.AppendText(message + Environment.NewLine);
+                    logText.ScrollToEnd();
+                }
+            }));
         }
 
         private void DisableInterface() {
@@ -296,8 +236,8 @@ namespace BulkMediaDownloader {
         private void pauseButton_Click(object sender, RoutedEventArgs e) {
             foreach (ADownloadable down in this.lstDownloadables.SelectedItems) {
                 down.Pause();
+                down.Save();
             }
-            manager.SaveAll();
         }
 
         private void pauseAllButton_Click(object sender, RoutedEventArgs e) {
@@ -308,8 +248,8 @@ namespace BulkMediaDownloader {
         private void startButton_Click(object sender, RoutedEventArgs e) {
             foreach (ADownloadable down in this.lstDownloadables.SelectedItems) {
                 down.Reset();
+                down.Save();
             }
-            manager.SaveAll();
         }
 
         private void startAllButton_Click(object sender, RoutedEventArgs e) {
@@ -339,15 +279,13 @@ namespace BulkMediaDownloader {
             }
             foreach (ADownloadable down in to_remove) {
                 manager.Remove(down);
+                down.Delete();
             }
-            manager.SaveAll();
             e.Handled = true;
         }
 
         private void addDownload_Click(object sender, RoutedEventArgs e) {
             try {
-                RibbonMenuItem rmi = (RibbonMenuItem)sender;
-
                 MultiLineInput mli = new MultiLineInput();
                 mli.Owner = this;
                 if (mli.ShowDialog().Value) {
@@ -362,11 +300,10 @@ namespace BulkMediaDownloader {
                     }
 
                     foreach (Uri uri in uris) {
-                        urls.Enqueue(new UrlToProcess(uri, rmi.Tag.ToString()));
+                        urls.Enqueue(uri);
                     }
 
-                    if (!processing)
-                        startProcess();
+                    startProcess();
                 }
             } catch (Exception ex) {
                 ShowException(ex);

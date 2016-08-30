@@ -15,7 +15,7 @@ namespace BulkMediaDownloader.MediaSources
         private static Regex address_regex = new Regex(@"((.+)/post/list/([^/]+)/?)(\d+)");
         private static Regex page_nav_regex = new Regex(@"/post/list/[^/]+/(\d+)");
         private static Regex images_regex = new Regex("class='[^'\"]+' href='(/post/view/[\\d]+)'");
-        private static Regex image_regex = new Regex("http://.+/_images/[^'\"]+");
+        private static Regex image_regex = new Regex("https?://.+/_images/[^'\"]+");
 
         private static Regex image_only_regex = new Regex("<a href=['\"](.+_images.+)['\"]>Image Only");
 
@@ -23,12 +23,16 @@ namespace BulkMediaDownloader.MediaSources
         private string query_root;
         private string album_name;
 
+        public static bool ValidateUrl(Uri url) {
+            return address_regex.IsMatch(url.ToString());
+        }
+
         public ShimmieMediaSource(Uri url)
             : base(url) {
 
 
-            if (!address_regex.IsMatch(url.ToString())) {
-                throw new Exception("Shimmie URL not understood");
+            if (!ValidateUrl(url)) {
+                throw new UrlNotRecognizedException("Shimmie URL not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             address_root = address_matches[0].Groups[2].Value;
@@ -42,7 +46,7 @@ namespace BulkMediaDownloader.MediaSources
         {
             if (!address_regex.IsMatch(url.ToString()))
             {
-                throw new Exception("Hentai Foundry URL not understood");
+                throw new UrlNotRecognizedException("Shimmie URL not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             string album_name = address_matches[0].Groups[3].Value;
@@ -65,15 +69,26 @@ namespace BulkMediaDownloader.MediaSources
             return total_pages;
         }
 
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
+
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url, string page_contents, string stage) {
+            switch (stage) {
+                case INITIAL_STAGE:
+                    return GetGalleryPages(url, page_contents);
+                case "gallery":
+                    return GetImages(url, page_contents);
+                default:
+                    throw new NotSupportedException(stage);
+            }
+        }
+
+        private MediaSourceResults GetGalleryPages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
             bool new_max_found = true;
             int total_pages = 0;
 
             string test_url = url.ToString();
 
             while (new_max_found) {
-                IfPausedWaitUntilUnPaused();
                 new_max_found = false;
 
                 int test = GetHighestPageNumber(page_contents);
@@ -88,26 +103,21 @@ namespace BulkMediaDownloader.MediaSources
 
             //(.+)/post/list/([^/]+/)?(\d+)
             for (int i = 1; i <= total_pages; i++) {
-                IfPausedWaitUntilUnPaused();
-
                 test_url = query_root + i.ToString();
 
-                output.Add(new Uri(test_url));
+                output.Add(new MediaSourceResult(new Uri(test_url),null, this.url, this, MediaResultType.DownloadSource, "gallery"));
             }
             return output;
 
         }
 
 
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
+        private MediaSourceResults GetImages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
 
             MatchCollection image_matches = image_only_regex.Matches(page_contents);
             foreach (Match image_match in image_matches)
             {
-                IfPausedWaitUntilUnPaused();
-
                 GroupCollection groups = image_match.Groups;
                 Group group = groups[0];
 
@@ -115,7 +125,7 @@ namespace BulkMediaDownloader.MediaSources
 
                 if (image_regex.IsMatch(image))
                 {
-                    output.Add(new MediaSourceResult(new Uri(image), page_url, this.url));
+                    output.Add(new MediaSourceResult(new Uri(image), page_url, this.url, this, MediaResultType.Download));
                 }
             }
             return output;

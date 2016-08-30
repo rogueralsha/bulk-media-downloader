@@ -19,21 +19,8 @@
     <Ribbon Grid.Row="0" Grid.Column="0" x:Name="ribbon" SelectedIndex="0" Grid.ColumnSpan="3" >
             <RibbonTab Header="Downloads">
                 <RibbonGroup>
-                    <RibbonMenuButton LargeImageSource="images/add.png" Label="Add">
-                        <RibbonMenuItem Header="Artstation" x:Name="addArtstation" Tag="artstation" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Blogger" x:Name="addBlogger" Tag="blogger" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Comic Art Community" x:Name="addComicArtCommunity" Tag="cac" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="DeviantArt" x:Name="addDeviantArt" Tag="deviantart" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Flickr" x:Name="addFlickr" Tag="flickr" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Hentai Foundry" x:Name="addHentaiFoundry" Tag="hentaifoundry" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="ImageFap" x:Name="addImageFap" Tag="imagefap" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="JuiceBox" IsEnabled="False" x:Name="addJuiceBox" Tag="juicebox" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="NextGEN Gallery (Wordpress Plugin)" IsEnabled="False" x:Name="addNextGEN" Tag="nextgen" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Pixiv" x:Name="addPixiv" Tag="pixiv" Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Shimmie" x:Name="addShimmie" Tag="shimmie"  Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Sitemap XML" x:Name="addSitemap" Tag="sitemap"  Click="addDownload_Click"/>
-                        <RibbonMenuItem Header="Tumblr" x:Name="addTumblr" Tag="tumblr" Click="addDownload_Click"/>
-                    </RibbonMenuButton>
+                    <RibbonButton LargeImageSource="images/add.png" Label="Add" Click="addDownload_Click">
+                    </RibbonButton>
                 </RibbonGroup>
                 <RibbonGroup Header="Control">
                     <RibbonSplitButton Label="Pause" x:Name="pauseButton" Click="pauseButton_Click" LargeImageSource="images/pause.png">

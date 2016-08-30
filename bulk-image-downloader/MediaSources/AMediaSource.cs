@@ -15,11 +15,17 @@ using HtmlAgilityPack;
 
 namespace BulkMediaDownloader.MediaSources
 {
-    public abstract class AMediaSource : INotifyPropertyChanged
-    {
-        protected Uri url;
+    public class MediaSourceEventArgs: EventArgs {
+        public String Message;
+    }
 
-        public BackgroundWorker worker;
+    public abstract class AMediaSource
+    {
+
+        public const String INITIAL_STAGE = "initial";
+
+
+        protected Uri url;
 
         protected bool pause_work = false;
 
@@ -30,9 +36,21 @@ namespace BulkMediaDownloader.MediaSources
 
         protected static SuperWebClient TheWebClient = new SuperWebClient();
 
-        public int WebRequestWaitTime { get; set; }
+        public event EventHandler<MediaSourceEventArgs> StatusChanged;
+
+        private int _WebRequestWaitTime;
+        public int WebRequestWaitTime {
+            get {
+                return _WebRequestWaitTime + RandomWaitTime;
+            }
+            set {
+                _WebRequestWaitTime = value;
+            }
+        }
         public int WebRequestErrorAdditionalWaitTime { get; set; }
         public int WebRequestRetryCount { get; set; }
+
+        public readonly bool Disabled = false;
 
         public AMediaSource(Uri url)
         {
@@ -41,10 +59,42 @@ namespace BulkMediaDownloader.MediaSources
             this.WebRequestRetryCount = 5;
             this.RequiresLogin = false;
             this.url = url;
-            worker = new BackgroundWorker();
-            worker.DoWork += worker_DoWork;
-            worker.WorkerSupportsCancellation = true;
-            worker.WorkerReportsProgress = true;
+        }
+
+        private int _RandomWaitTime = 10;
+        /// <summary>
+        /// Generates a random additional wait time between 0 and 500 milliseconds
+        /// </summary>
+        protected int RandomWaitTime {
+            get {
+                return new Random().Next(0, _RandomWaitTime);
+            }
+            set {
+                _RandomWaitTime = value;
+            }
+        }
+
+        protected void sendStatus(String message) {
+            if (StatusChanged != null) {
+                MediaSourceEventArgs args = new MediaSourceEventArgs();
+                args.Message = message;
+                this.StatusChanged(this, args);
+            }
+        }
+
+        protected void sendStatus(Exception e) {
+            if (StatusChanged != null) {
+                StringBuilder message = new StringBuilder();
+                while(e!=null) {
+                    message.AppendLine(e.Message);
+                    message.AppendLine(e.StackTrace);
+                    e = e.InnerException;
+                }
+
+                MediaSourceEventArgs args = new MediaSourceEventArgs();
+                args.Message = message.ToString();
+                this.StatusChanged(this, args);
+            }
         }
 
         public static void SetCookies(List<CefSharp.Cookie> new_cookies)
@@ -57,101 +107,21 @@ namespace BulkMediaDownloader.MediaSources
             return "";
         }
 
-        void worker_DoWork(object sender, DoWorkEventArgs e)
+        public MediaSourceResult GetInitialStage()
         {
-            UniqueQueue<Uri> pages = new UniqueQueue<Uri>();
-            //HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
-            Uri starting_page = new Uri(this.url.ToString());
-
-            if (!Properties.Settings.Default.DetectAdditionalPages)
-            {
-                pages.Enqueue(starting_page);
-            }
-            else
-            {
-                worker.ReportProgress(0, "Getting all pages from " + starting_page);
-                pages = new UniqueQueue<Uri>();
-                pages.EnqueueAll(GetPages(starting_page, GetPageContents(starting_page)));
-
-                if (pages.Count == 0)
-                    worker.ReportProgress(100, "No Pages founds");
-            }
-
-            List<Download.DownloadablesSource> output = new List<Download.DownloadablesSource>();
-            while(pages.Count>0) {
-                Download.DownloadablesSource source = new Download.DownloadablesSource(this.GetType().Name, this.url, pages.Dequeue());
-                output.Add(source);
-            }
-
-            //double page_count = pages.Count, i = 0;
-            //while(pages.Count > 0) {
-            //    Uri page = pages.Dequeue();
-
-            //    double divided = i / page_count;
-            //    int progress = (int)Math.Ceiling(divided * 100);
-
-            //    worker.ReportProgress(progress, "Getting items from page " + page.ToString() + " (" + (i + 1) + "/" + page_count + ")");
-            //    HashSet<MediaSourceResult> page_images = GetMediaFromPage(page, GetPageContents(page));
-            //    worker.ReportProgress(progress, page_images.Count + " items found");
-            //    foreach (MediaSourceResult media in page_images)
-            //    {
-            //        output.Add(media);
-            //    }
-            //    i++;
-            //}
-
-            //worker.ReportProgress(100, "Done fetching items, total images " + output.Count);
-
-            e.Result = output;
+            MediaSourceResult output = 
+                new MediaSourceResult(this.url,null,this.url, this, MediaResultType.DownloadSource, INITIAL_STAGE);
+            return output;
         }
 
-
-        abstract protected HashSet<Uri> GetPages(Uri page_url, String page_contents);
-        abstract public HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url);
-
-        public void Start()
-        {
-            if (worker.IsBusy)
-            {
-                pause_work = false;
-            }
-            else
-            {
-                worker.RunWorkerAsync();
-            }
+        public MediaSourceResults ProcessDownloadSource(Uri url, Uri referrer, string stage) {
+            string page_contents = GetPageContents(url, referrer);
+            return ProcessDownloadSourceInternal(url, page_contents, stage);
         }
 
-        public void Pause()
-        {
-            pause_work = true;
-        }
+        abstract protected MediaSourceResults ProcessDownloadSourceInternal(Uri url, String page_contents, String stage);
 
-        public void Cancel()
-        {
-            worker.CancelAsync();
-        }
-
-        protected void NotifyPropertyChanged(String propertyName = "")
-        {
-            if (PropertyChanged != null)
-            {
-                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-            }
-        }
-
-
-        protected void IfPausedWaitUntilUnPaused()
-        {
-            while (pause_work)
-            {
-                Thread.Sleep(500);
-            }
-        }
-
-        protected virtual void SetCustomRequestHeaders(HttpWebRequest req)
-        {
-        }
+        protected virtual void SetCustomRequestHeaders(HttpWebRequest req) {}
 
         protected Uri GetRedirectURL(Uri url, Uri referer = null)
         {
@@ -260,67 +230,68 @@ namespace BulkMediaDownloader.MediaSources
         /// </summary>
         /// <param name="page_contents"></param>
         /// <returns></returns>
-        protected List<Uri> getImagesAndDirectLinkedMedia(Uri base_url, string page_contents)
-        {
-            List<Uri> output = new List<Uri>();
+        protected List<MediaSourceResult> getImagesAndDirectLinkedMedia(Uri base_url, string page_contents) {
+            List<MediaSourceResult> output = new List<MediaSourceResult>();
             HtmlAgilityPack.HtmlDocument doc = new HtmlDocument();
 
             doc.LoadHtml(page_contents);
 
 
             // Get all image tags
-            foreach (HtmlNode imageNode in doc.DocumentNode.SelectNodes("//img"))
-            {
-                try
-                {
-                    if (imageNode.Attributes["src"] == null)
-                        continue;
-                    String image_src = imageNode.Attributes["src"].Value;
-                    if (!String.IsNullOrWhiteSpace(image_src))
-                    {
-                        Uri image_url = GenerateFullUrl(base_url,image_src);
-                        output.Add(image_url);
-                    }
-
-                }
-                catch (Exception e)
-                {
-                    Console.Out.WriteLine(e.Message);
-                }
-            }
-
-
-            // Get all media links
-            foreach (HtmlNode imageNode in doc.DocumentNode.SelectNodes("//a")) {
-                String href;
-                try
-                {
-                    if (imageNode.Attributes["href"] == null)
-                        continue;
-                    href = imageNode.Attributes["href"].Value;
-
-                    if (!String.IsNullOrWhiteSpace(href))
-                    {
-                        Uri href_url = GenerateFullUrl(base_url, href);
-
-                        // Check for media file extensions
-                        if (isMediaFile(href_url.ToString()))
-                        {
-                            output.Add(href_url);
+            HtmlNodeCollection nodes = doc.DocumentNode.SelectNodes("//img");
+            if (nodes != null) {
+                foreach (HtmlNode imageNode in nodes) {
+                    try {
+                        if (imageNode.Attributes["src"] == null)
                             continue;
+                        String image_src = imageNode.Attributes["src"].Value;
+                        if (!String.IsNullOrWhiteSpace(image_src)) {
+                            Uri image_url = GenerateFullUrl(base_url, image_src);
+                            output.Add(new MediaSourceResult(image_url, base_url, this.url, this, MediaResultType.Download));
                         }
 
-                        output.AddRange(getHostedMedia(href_url));
-
+                    } catch (Exception e) {
+                        Console.Out.WriteLine(e.Message);
                     }
-
-                }
-                catch (Exception e)
-                {
-                    Console.Out.WriteLine(e.Message);
                 }
             }
 
+            // Get all media links
+            nodes = doc.DocumentNode.SelectNodes("//a");
+            if (nodes != null) {
+                foreach (HtmlNode imageNode in nodes) {
+                    String href;
+                    try {
+                        if (imageNode.Attributes["href"] == null)
+                            continue;
+                        href = imageNode.Attributes["href"].Value;
+
+                        if (!String.IsNullOrWhiteSpace(href)) {
+                            Uri href_url = GenerateFullUrl(base_url, href);
+
+                            // Check for media file extensions
+                            if (isMediaFile(href_url.ToString())) {
+                                // Check if the file is actually a nested page
+                                WebHeaderCollection headers = GetHeaders(href_url, base_url);
+                                if (headers[HttpResponseHeader.ContentType].ToLower().Contains("text/html")) {
+                                    // This means that a particular image is actually a nesting page of some sort. Gotta extract it!
+                                    output.AddRange(getImagesAndDirectLinkedMedia(href_url, GetPageContents(href_url, base_url)));
+                                } else {
+                                    output.Add(new MediaSourceResult(href_url, base_url, this.url, this, MediaResultType.Download));
+
+                                }
+                                continue;
+                            }
+
+                            output.AddRange(getHostedMedia(href_url));
+
+                        }
+
+                    } catch (Exception e) {
+                        Console.Out.WriteLine(e.Message);
+                    }
+                }
+            }
             return output;
         }
 
@@ -336,53 +307,20 @@ namespace BulkMediaDownloader.MediaSources
             return false;
         }
 
-        private static Regex gfycat_regex = new Regex(@"(.+gfycat.com/.+)");
-        protected List<Uri> getHostedMedia(Uri url)
+        protected List<MediaSourceResult> getHostedMedia(Uri url)
         {
-            List<Uri> output = new List<Uri>();
+            List<MediaSourceResult> output = new List<MediaSourceResult>();
 
-            // Check for known media hosting sites
-
-            if (ImgurMediaSource.SupportsUrl(url))
-            {
-                throw new NotSupportedException();
+            try {
+                AMediaSource source = MediaSourceManager.GetMediaSourceForUrl(url, true);
+                output.Add(new MediaSourceResult(url, null, url, source, MediaResultType.DownloadSource, INITIAL_STAGE));
+            } catch (UrlNotRecognizedException ex) {
+                Console.Out.WriteLine("Unsupported, eh?");
             }
-
-            if (gfycat_regex.IsMatch(url.ToString()))
-            {
-                String contents = GetPageContents(url);
-
-                //<source id="webmSource" src="https://giant.gfycat.com/YawningBlaringGuanaco.webm" type="video/webm">
-                //<source id="mp4Source" src="https://fat.gfycat.com/YawningBlaringGuanaco.mp4" type="video/mp4">
-                HtmlDocument doc = new HtmlDocument();
-                doc.LoadHtml(contents);
-                HtmlNode node = doc.GetElementbyId("webmSource");
-                try
-                {
-                    if (node != null && node.Attributes["src"] != null && !String.IsNullOrWhiteSpace(node.Attributes["src"].Value))
-                        output.Add(new Uri(node.Attributes["src"].Value));
-                }
-                catch (Exception e)
-                {
-                    Console.Out.WriteLine(e.Message);
-                }
-                node = doc.GetElementbyId("mp4Source");
-                try
-                {
-                    if (node != null && node.Attributes["src"] != null && !String.IsNullOrWhiteSpace(node.Attributes["src"].Value))
-                        output.Add(new Uri(node.Attributes["src"].Value));
-                }
-                catch (Exception e)
-                {
-                    Console.Out.WriteLine(e.Message);
-                }
-
-
-            }
-
 
             return output;
         }
+
     }
 
 

@@ -19,8 +19,9 @@ namespace BulkMediaDownloader.MediaSources
 
         public ImgurMediaSource(Uri url)
             : base(url) {
+            throw new NotImplementedException("Imgur's not done, finish it!");
 
-            if (!SupportsUrl(url))
+            if (!ValidateUrl(url))
             {
                 throw new Exception("Imgur URL not understood");
             }
@@ -30,14 +31,13 @@ namespace BulkMediaDownloader.MediaSources
         }
 
 
-        public static bool SupportsUrl(Uri url)
-        {
+        public static bool ValidateUrl(Uri url) {
             return address_regex.IsMatch(url.ToString());
         }
 
         public override string getFolderNameFromURL(Uri url)
         {
-            if (!SupportsUrl(url))
+            if (!ValidateUrl(url))
             {
                     throw new Exception("Imgur URL not understood");
             }
@@ -65,7 +65,7 @@ namespace BulkMediaDownloader.MediaSources
             return output.Uri;
         }
 
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
+        private dynamic GetPages(Uri page_url, String page_contents) {
             HashSet<Uri> output = new HashSet<Uri>();
 
             int offset = 1;
@@ -85,22 +85,8 @@ namespace BulkMediaDownloader.MediaSources
 
         }
 
-        private XmlNode getChildNode(XmlNode parent, string child_name, string child_attribute_name, string child_attribute_value)
-        {
-            foreach(XmlNode child in parent.ChildNodes)
-            {
-                if (child.Name.ToLower() != child_name.ToLower())
-                    continue;
 
-                if (child.Attributes[child_attribute_name].Value.ToLower() != child_attribute_value.ToLower())
-                    continue;
-
-                return child;
-            }
-            return null;
-        }
-
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
+        private dynamic GetMediaFromPage(Uri page_url) {
             String page_contents = this.GetPageContents(page_url);
             HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
 
@@ -121,10 +107,10 @@ namespace BulkMediaDownloader.MediaSources
                 Uri self_url = new Uri(linkNode.Attributes["href"].Value);
                 String entry = WebUtility.HtmlDecode(node.InnerText);
 
-                foreach (Uri url in getImagesAndDirectLinkedMedia(self_url, entry))
-                {
-                    output.Add(new MediaSourceResult(url, self_url, this.url));
-                }
+                //foreach (Uri url in getImagesAndDirectLinkedMedia(self_url, entry))
+                //{
+                //    output.Add(new MediaSourceResult(url, self_url, this.url));
+                //}
             }
             return output;
 

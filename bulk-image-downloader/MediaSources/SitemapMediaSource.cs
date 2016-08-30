@@ -12,7 +12,6 @@ using System.Text.RegularExpressions;
 namespace BulkMediaDownloader.MediaSources
 {
     public class SitemapMediaSource: ASitemapMediaSource {
-        //http://www.hentai-foundry.com/pictures/user/GENSHI
         private static Regex address_regex = new Regex(@"(https?://([^/]+)/.*sitemap.*)");
 
         private string album_name;
@@ -27,6 +26,12 @@ namespace BulkMediaDownloader.MediaSources
             album_name = address_matches[0].Groups[2].Value;
 
         }
+
+
+        public static bool ValidateUrl(Uri url) {
+            return address_regex.IsMatch(url.ToString());
+        }
+
 
         public override string getFolderNameFromURL(Uri url)
         {
@@ -47,57 +52,6 @@ namespace BulkMediaDownloader.MediaSources
             XmlNodeList nodes = doc.GetElementsByTagName("url");
             return nodes;
         }
-
-
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
-            output.Add(page_url);
-            return output;
-        }
-
-
-
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
-            XmlNodeList nodes = GetEntries(page_contents);
-            foreach(XmlNode node in nodes)
-            {
-
-                XmlNode locNode = getChildNode(node, "loc");
-                if (locNode == null)
-                    continue;
-
-                if (String.IsNullOrWhiteSpace(locNode.InnerText))
-                    continue;
-
-                Uri self_url = new Uri(locNode.InnerText);
-
-                List<XmlNode> imageNodes = getChildNodes(node, "image:image");
-                foreach(XmlNode imageNode in imageNodes)
-                {
-                    XmlNode imageLocNode = getChildNode(imageNode, "image:loc");
-                    if(imageLocNode!=null&&!string.IsNullOrEmpty(imageLocNode.InnerText))
-                    {
-                        output.Add(new MediaSourceResult(new Uri(imageLocNode.InnerText), self_url, this.url));
-                    }
-                }
-
-                String entry = GetPageContents(self_url);
-
-                List<Uri> things = getImagesAndDirectLinkedMedia(self_url, entry);
-                foreach(Uri thing in things)
-                {
-                    output.Add(new MediaSourceResult(thing, self_url, this.url));
-                }
-
-            }
-            return output;
-
-        }
-
-
 
     }
 }

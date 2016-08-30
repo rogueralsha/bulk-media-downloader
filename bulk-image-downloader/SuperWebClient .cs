@@ -61,11 +61,14 @@ namespace BulkMediaDownloader {
 
                 // Mimicking the Chrome browser
                 webRequest.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8";
-                webRequest.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36";
-                //webRequest.Headers.Add("Accept-Encoding", "gzip, deflate, sdch");
+                webRequest.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36";
+                webRequest.Headers.Add("Accept-Encoding", "gzip, deflate, sdch");
                 webRequest.Headers.Add("Accept-Charset", "UTF-8");
                 webRequest.Headers.Add("Accept-Language", "en-US,en;q=0.8");
                 webRequest.Headers.Add("Upgrade-Insecure-Requests", "1");
+
+
+                    webRequest.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
 
                 }
 

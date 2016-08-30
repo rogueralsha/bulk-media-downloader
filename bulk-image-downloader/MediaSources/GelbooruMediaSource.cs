@@ -15,7 +15,7 @@ namespace BulkMediaDownloader.MediaSources
         private static Regex address_regex = new Regex(@"((.+)/post/list/[^/]+/?)(\d+)");
         private static Regex page_nav_regex = new Regex(@"/post/list/[^/]+/(\d+)");
         private static Regex images_regex = new Regex("class='[^'\"]+' href='(/post/view/[\\d]+)'");
-        private static Regex image_regex = new Regex("http://.+/_images/[^'\"]+");
+        private static Regex image_regex = new Regex("https?://.+/_images/[^'\"]+");
 
         private string address_root;
         private string query_root;

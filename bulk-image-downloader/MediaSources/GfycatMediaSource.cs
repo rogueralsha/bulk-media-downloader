@@ -8,35 +8,42 @@ using System.Net;
 using System.IO;
 using System.Xml;
 using System.Text.RegularExpressions;
+using HtmlAgilityPack;
 
 namespace BulkMediaDownloader.MediaSources
 {
-    public class GfycatMediaSource: ASitemapMediaSource {
+    public class GfycatMediaSource: AMediaSource {
         //http://www.hentai-foundry.com/pictures/user/GENSHI
         private static Regex address_regex = new Regex(@"(.+gfycat.com/.+)");
 
+        private static Regex media_address_regex = new Regex(@"(.+gfycat.com/[^/]+)");
+
         private string album_name;
-        int results_per_page = 500;
 
         public GfycatMediaSource(Uri url)
             : base(url) {
 
-            if (!SupportsUrl(url)) {
+            if (!ValidateUrl(url)) {
                 throw new Exception("Gfycat URL not understood");
             }
+
+            if (url.ToString().Contains("@"))
+                throw new Exception("Gallery links not yet supported");
+            //https://gfycat.com/@rogueralsha/carrie_keagan_as_power_girl
+
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             album_name = address_matches[0].Groups[2].Value;
 
         }
 
-        public static bool SupportsUrl(Uri url)
-        {
+        public static bool ValidateUrl(Uri url) {
             return address_regex.IsMatch(url.ToString());
         }
 
+
         public override string getFolderNameFromURL(Uri url)
         {
-            if (!SupportsUrl(url))
+            if (!ValidateUrl(url))
             {
                     throw new Exception("Gfycat URL not understood");
             }
@@ -45,88 +52,53 @@ namespace BulkMediaDownloader.MediaSources
             return album_name;
         }
 
-        private XmlNodeList GetEntries(string page_contents)
-        {
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml(page_contents);
+        protected const String MEDIA_STAGE = "media";
 
-            XmlNodeList nodes = doc.GetElementsByTagName("entry");
-            return nodes;
-        }
-
-        private Uri constructPageUrl(Uri base_url, int offset)
-        {
-            UriBuilder output = new UriBuilder(base_url);
-            // http://aaaninja.blogspot.com/atom.xml?redirect=false&start-index=1&max-results=500
-
-            output.Query = "redirect=false&start-index=" + offset + "&max-results=" + results_per_page;
-
-            return output.Uri;
-        }
-
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
-
-            int offset = 1;
-            Uri current_url = constructPageUrl(page_url, offset);
-            XmlNodeList nodes = GetEntries(page_contents);
-
-            while(nodes.Count>0)
-            {
-                output.Add(current_url);
-                offset += results_per_page;
-                current_url = constructPageUrl(page_url, offset);
-                page_contents = GetPageContents(current_url);
-                nodes = GetEntries(page_contents);
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url, string page_contents, string stage) {
+            switch (stage) {
+                case INITIAL_STAGE:
+                    return DetermineAction(url, page_contents);
+                default:
+                    throw new NotSupportedException(stage);
             }
+        }
+
+        private MediaSourceResults DetermineAction(Uri page_url, String page_contents) {
+            if(media_address_regex.IsMatch(page_url.ToString())) {
+                return GetMediaFromPage(page_url, page_contents);
+            } else {
+                throw new Exception("URL not supported: " + page_url.ToString());
+            }
+        }
+
+
+
+        private MediaSourceResults GetMediaFromPage(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+
+            //<source id="webmSource" src="https://giant.gfycat.com/YawningBlaringGuanaco.webm" type="video/webm">
+            //<source id="mp4Source" src="https://fat.gfycat.com/YawningBlaringGuanaco.mp4" type="video/mp4">
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(page_contents);
+            HtmlNode node = doc.GetElementbyId("webmSource");
+            try {
+                if (node != null && node.Attributes["src"] != null && !String.IsNullOrWhiteSpace(node.Attributes["src"].Value))
+                    output.Add(new MediaSourceResult(new Uri(node.Attributes["src"].Value), page_url,this.url, this, MediaResultType.Download));
+            } catch (Exception e) {
+                Console.Out.WriteLine(e.Message);
+            }
+            node = doc.GetElementbyId("mp4Source");
+            try {
+                if (node != null && node.Attributes["src"] != null && !String.IsNullOrWhiteSpace(node.Attributes["src"].Value))
+                    output.Add(new MediaSourceResult(new Uri(node.Attributes["src"].Value), page_url, this.url, this, MediaResultType.Download));
+            } catch (Exception e) {
+                Console.Out.WriteLine(e.Message);
+            }
+
+            output.Add(new MediaSourceResult(url, null, url, MediaSourceManager.GetMediaSourceForUrl(url), MediaResultType.DownloadSource, INITIAL_STAGE));
+
 
             return output;
-
-        }
-
-        private XmlNode getChildNode(XmlNode parent, string child_name, string child_attribute_name, string child_attribute_value)
-        {
-            foreach(XmlNode child in parent.ChildNodes)
-            {
-                if (child.Name.ToLower() != child_name.ToLower())
-                    continue;
-
-                if (child.Attributes[child_attribute_name].Value.ToLower() != child_attribute_value.ToLower())
-                    continue;
-
-                return child;
-            }
-            return null;
-        }
-
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
-            XmlNodeList nodes = GetEntries(page_contents);
-            foreach(XmlNode node in nodes)
-            {
-                if (node.Attributes["html"].Value != "html")
-                    continue;
-
-                XmlNode contentNode = getChildNode(node, "content", "type", "html");
-                if (contentNode == null)
-                    continue;
-
-                XmlNode linkNode = getChildNode(node, "link", "rel", "htmself");
-                if (contentNode == null)
-                    continue;
-
-                Uri self_url = new Uri(linkNode.Attributes["href"].Value);
-                String entry = WebUtility.HtmlDecode(node.InnerText);
-
-                foreach (Uri url in getImagesAndDirectLinkedMedia(self_url, entry))
-                {
-                    output.Add(new MediaSourceResult(url, self_url, this.url));
-                }
-            }
-            return output;
-
         }
 
 

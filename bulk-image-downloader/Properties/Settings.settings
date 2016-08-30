@@ -8,14 +8,8 @@
     <Setting Name="MaxConcurrentDownloads" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">1</Value>
     </Setting>
-    <Setting Name="DetectAdditionalPages" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">True</Value>
-    </Setting>
     <Setting Name="LastDownloadDir" Type="System.String" Scope="User">
       <Value Profile="(Default)">C:\Users\sanmadjack.FORTAWESOME\Desktop\TEST</Value>
-    </Setting>
-    <Setting Name="Downloads" Type="BulkMediaDownloader.DownloadManager" Scope="User">
-      <Value Profile="(Default)" />
     </Setting>
     <Setting Name="MediaExtensions" Type="System.Collections.Specialized.StringCollection" Scope="User">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;

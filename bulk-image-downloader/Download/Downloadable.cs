@@ -8,6 +8,9 @@ using System.IO;
 using System.Net;
 using System.Xml;
 using System.Xml.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
 namespace BulkMediaDownloader.Download {
 
 
@@ -17,11 +20,15 @@ namespace BulkMediaDownloader.Download {
         private SuperWebClient client;
 
         [XmlIgnore]
+        [NotMapped]
         public int MaxAttempts { get; set; }
 
         private string _OverrideFileName = null;
 
+        private string OriginalFileName = null;
+
         [XmlIgnore]
+        [NotMapped]
         public string FileName {
             get {
                 if (!String.IsNullOrWhiteSpace(_OverrideFileName))
@@ -45,6 +52,7 @@ namespace BulkMediaDownloader.Download {
         }
 
         [XmlIgnore]
+        [NotMapped]
         public override bool RequiresLogin {
             get {
                 return false;
@@ -53,6 +61,7 @@ namespace BulkMediaDownloader.Download {
 
 
         [XmlIgnore]
+        [NotMapped]
         public Uri RefererURL { get; protected set; }
         public String RefererURLString {
             get {
@@ -62,6 +71,9 @@ namespace BulkMediaDownloader.Download {
                     return RefererURL.ToString();
             }
             set {
+                if (value == null)
+                    RefererURL = null;
+                else
                 RefererURL = new Uri(value);
             }
         }
@@ -73,6 +85,7 @@ namespace BulkMediaDownloader.Download {
         private DateTime download_start_time;
 
         [XmlIgnore]
+        [NotMapped]
         public Uri Site { get; set; }
         public String SiteString {
             get {
@@ -94,6 +107,7 @@ namespace BulkMediaDownloader.Download {
 
 
         [XmlIgnore]
+        [NotMapped]
         public int StartDelay = 1000;
 
         #region Properties
@@ -118,6 +132,7 @@ namespace BulkMediaDownloader.Download {
 
         private long _downloaded_length = -1;
         [XmlIgnore]
+        [NotMapped]
         public long DownloadedLength {
             get {
                 return _downloaded_length;
@@ -133,7 +148,8 @@ namespace BulkMediaDownloader.Download {
 
 
         [XmlIgnore]
-        public int Progress {
+        [NotMapped]
+        public override int Progress {
             get {
                 if (State == DownloadState.Complete || State == DownloadState.Skipped) {
                     return 100;
@@ -152,6 +168,7 @@ namespace BulkMediaDownloader.Download {
 
         private int _attempts = 0;
         [XmlIgnore]
+        [NotMapped]
         public int Attempts {
             get {
                 return _attempts;
@@ -170,6 +187,7 @@ namespace BulkMediaDownloader.Download {
         #region "Download status"
 
         [XmlIgnore]
+        [NotMapped]
         public string Speed {
             get {
                 if (download_start_time == null || this.State != DownloadState.Downloading) {
@@ -186,7 +204,8 @@ namespace BulkMediaDownloader.Download {
             }
         }
         [XmlIgnore]
-        public string ProgressText {
+        [NotMapped]
+        public override string ProgressText {
             get {
                 StringBuilder output = new StringBuilder();
                 if (DownloadedLength < 0) {
@@ -265,18 +284,18 @@ namespace BulkMediaDownloader.Download {
 
         #endregion
 
-        private void ChangeToNonDuplicateFileName() {
+        private int FileNameIncrement = 0;
+
+        private void IncrementFileName() {
             string filename = Path.GetFileNameWithoutExtension(this.FileName);
             string ext = Path.GetExtension(this.FileName);
-            int i = 1;
-            while (File.Exists(this.GetDownloadPath())) {
-                string post_file_portion = " (" + i.ToString() + ")" + ext;
-                if (post_file_portion.Length + filename.Length > 255) {
-                    this._OverrideFileName = filename.Substring(0, 255 - post_file_portion.Length) + post_file_portion;
-                } else {
-                    this._OverrideFileName = filename + post_file_portion;
-                }
-                i++;
+            FileNameIncrement++;
+
+            string post_file_portion = " (" + FileNameIncrement.ToString() + ")" + ext;
+            if (post_file_portion.Length + filename.Length > 255) {
+                this._OverrideFileName = filename.Substring(0, 255 - post_file_portion.Length) + post_file_portion;
+            } else {
+                this._OverrideFileName = filename + post_file_portion;
             }
         }
 
@@ -309,7 +328,7 @@ namespace BulkMediaDownloader.Download {
                 fi.Directory.Create();
             }
 
-            if (fi.Exists) {
+            while (fi.Exists) {
                 long length = 0;
 
                 using (SuperWebClient swc = new SuperWebClient()) {
@@ -327,14 +346,15 @@ namespace BulkMediaDownloader.Download {
                     this.State = DownloadState.Skipped;
                     return null;
                 }
-                ChangeToNonDuplicateFileName();
+               IncrementFileName();
+                fi = new FileInfo(this.GetDownloadPath());
             }
 
             System.Threading.Thread.Sleep(this.StartDelay);
 
             setUpClient();
 
-            switch (this.Type) {
+            switch (this.DataType) {
                 case DownloadType.Binary:
                     client.DownloadDataAsync(this.URL);
                     break;
@@ -354,7 +374,7 @@ namespace BulkMediaDownloader.Download {
                     if (client == null) {
                         setUpClient();
                     }
-                    switch (this.Type) {
+                    switch (this.DataType) {
                         case DownloadType.Binary:
                             client.DownloadDataAsync(this.URL);
                             break;
@@ -397,9 +417,9 @@ namespace BulkMediaDownloader.Download {
                         fi.Directory.Create();
                     }
 
-                    if (fi.Exists) {
+                    while (fi.Exists) {
                         long length = 0;
-                        switch (this.Type) {
+                        switch (this.DataType) {
                             case DownloadType.Binary:
                                 length = ((DownloadDataCompletedEventArgs)e).Result.LongLength;
                                 break;
@@ -411,9 +431,10 @@ namespace BulkMediaDownloader.Download {
                             this.State = DownloadState.Skipped;
                             return;
                         }
-                        ChangeToNonDuplicateFileName();
+                        IncrementFileName();
+                        fi = new FileInfo(this.GetDownloadPath());
                     }
-                    switch (this.Type) {
+                    switch (this.DataType) {
                         case DownloadType.Binary:
                             File.WriteAllBytes(this.GetDownloadPath(), ((DownloadDataCompletedEventArgs)e).Result);
                             break;
@@ -483,6 +504,10 @@ namespace BulkMediaDownloader.Download {
                     //Do something useful with ContentLength here 
                 }
             }
+        }
+
+        public override void Dispose() {
+            this.client.Dispose();
         }
 
 
