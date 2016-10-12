@@ -306,7 +306,6 @@ namespace BulkMediaDownloader.MediaSources
                         try {
                             this.GetHeaders(new_uri, page_url);
                             output.Add(new MediaSourceResult(new_uri, page_url, this.url, this, MediaResultType.Download));
-                            continue;
                         } catch (WebException ex) {
                             Console.Out.WriteLine(ex.Message);
                         }

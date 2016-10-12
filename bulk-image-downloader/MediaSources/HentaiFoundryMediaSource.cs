@@ -165,10 +165,11 @@ namespace BulkMediaDownloader.MediaSources
 
                 imageDoc.LoadHtml(page_contents);
 
-                HtmlNode imageNode= imageDoc.DocumentNode.SelectSingleNode("//div[@class='container']//div[@class='boxbody']//img");
+            HtmlNode imageNode = imageDoc.DocumentNode.SelectSingleNode("//div[@class='container']//div[@class='boxbody']//img");
+            HtmlNode embedNode = imageDoc.DocumentNode.SelectSingleNode("//embed");
 
 
-                if (imageNode!=null)
+            if (imageNode!=null)
                 {
                     String value = imageNode.Attributes["src"].Value;
                     if(value.StartsWith(@"//"))
@@ -179,6 +180,15 @@ namespace BulkMediaDownloader.MediaSources
                 } else {
                     throw new Exception("Image node not found");
                 }
+
+            if(embedNode != null) {
+                String value = embedNode.Attributes["src"].Value;
+                if (value.StartsWith(@"//")) {
+                    value = value.Replace(@"//", "http://");
+                }
+                output.Add(new MediaSourceResult(new Uri(value), page_url, this.url, this, MediaResultType.Download));
+
+            }
             return output;
         }
 
