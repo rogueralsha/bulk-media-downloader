@@ -219,7 +219,7 @@
     <Compile Include="MediaSources\ImgurMediaSource.cs" />
     <Compile Include="MediaSources\BloggerMediaSource.cs" />
     <Compile Include="MediaSources\ArtstationMediaSource.cs" />
-    <None Include="MediaSources\ComicArtCommunityMediaSource.cs" />
+    <Compile Include="MediaSources\ComicArtCommunityMediaSource.cs" />
     <Compile Include="MediaSources\TumblrMediaSource.cs" />
     <Compile Include="Migrations\20160819151644_1.cs" />
     <Compile Include="Migrations\20160819151644_1.designer.cs">

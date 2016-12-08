@@ -13,7 +13,7 @@ namespace BulkMediaDownloader.MediaSources {
         private static readonly IList<Type> mediaSourceTypes = new List<Type> {
             typeof(ArtstationMediaSource),
             typeof(BloggerMediaSource),
-            //typeof(ComicArtCommunityMediaSource),
+            typeof(ComicArtCommunityMediaSource),
             //typeof(FlickrMediaSource),
             //typeof(GelbooruMediaSource),
             typeof(GfycatMediaSource),

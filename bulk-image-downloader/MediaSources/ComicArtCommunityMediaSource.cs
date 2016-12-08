@@ -23,12 +23,18 @@ namespace BulkMediaDownloader.MediaSources
         public ComicArtCommunityMediaSource(Uri url)
             : base(url) {
 
-            if (!address_regex.IsMatch(url.ToString())) {
+            if (!ValidateUrl(url)) {
                 throw new Exception("CAC url not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             cat_id = address_matches[0].Groups[1].Value;
             setAlbumName(url);
+        }
+
+
+        public static bool ValidateUrl(Uri url)
+        {
+            return address_regex.IsMatch(url.ToString());
         }
 
         public override string getFolderNameFromURL(Uri url) {
@@ -37,23 +43,25 @@ namespace BulkMediaDownloader.MediaSources
         }
 
         private void setAlbumName(Uri url) {
-            if (!address_regex.IsMatch(url.ToString())) {
+            if (!ValidateUrl(url)) {
                 throw new Exception("CAC url not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             string contents = GetPageContents(new Uri(address_matches[0].Value));
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(contents);
-            HtmlNode node = doc.DocumentNode.SelectSingleNode("//span[@class='clickstream']");
+            HtmlNode node = doc.DocumentNode.SelectSingleNode("//title");
             if (node == null)
-                throw new Exception("Clickstream node not found");
-            for(int i = 1; i < node.ChildNodes.Count; i++) {
-                if (node.ChildNodes[i].InnerText.Length > 1) {
-                    album_name = node.ChildNodes[i].InnerText.Trim('/');
-                    return;
-                }
+            {
+                throw new Exception("Title node not found");
             }
-            album_name = address_matches[0].Groups[1].Value;
+            else
+            {
+                album_name = node.InnerText.Split('-')[0].Trim();
+                return;
+            }
+
+            //album_name = address_matches[0].Groups[1].Value;
         }
 
         private String getCategoryUrl(String category) {
@@ -62,9 +70,25 @@ namespace BulkMediaDownloader.MediaSources
 
         }
 
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url, string page_contents, string stage)
+        {
+            switch (stage)
+            {
+                case INITIAL_STAGE:
+                    return GetGalleryPages(url, page_contents);
+                case "gallery":
+                    return GetImagePages(url, page_contents);
+                case "image":
+                    return GetImages(url, page_contents);
+                default:
+                    throw new NotSupportedException(stage);
+            }
+        }
 
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
+
+        private MediaSourceResults GetGalleryPages(Uri page_url, String page_contents)
+        {
+            MediaSourceResults output = new MediaSourceResults();
 
             String baseUrl = getCategoryUrl(cat_id);
 
@@ -72,7 +96,7 @@ namespace BulkMediaDownloader.MediaSources
             doc.LoadHtml(page_contents);
             HtmlNode node = doc.DocumentNode.SelectSingleNode("//a[text() = 'Last page &raquo;']");
             if (node == null) {
-                output.Add(page_url);
+                output.Add(new MediaSourceResult(page_url, page_url, this.url, this, MediaResultType.DownloadSource, "gallery"));
                 return output;
             }
                 //throw new Exception("Could not find last page node");
@@ -82,47 +106,63 @@ namespace BulkMediaDownloader.MediaSources
             int last_page = int.Parse(last_number_string);
 
             for(int i = 1; i<= last_page; i++) {
-                output.Add(new Uri(baseUrl  + "&page=" + i));
-
+                output.Add(new MediaSourceResult(new Uri(baseUrl + "&page=" + i), page_url, this.url, this, MediaResultType.DownloadSource, "gallery"));
             }
 
             return output;
 
         }
 
-
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
+        private MediaSourceResults GetImagePages(Uri page_url, String page_contents)
+        {
+            MediaSourceResults output = new MediaSourceResults();
+            sendStatus("Fetching image pages from " + page_url.ToString());
 
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(page_contents);
-            HtmlNodeCollection nodes = doc.DocumentNode.SelectNodes("//tr[@class='imagerow1' or @class='imagerow2']/td/a");
-            
+            HtmlNodeCollection nodes = doc.DocumentNode.SelectNodes("//tr[@class='imagerow1' or @class='imagerow2']/td//a");
+
             if (nodes == null)
                 throw new Exception("Could not find any image nodes");
 
-            foreach(HtmlNode node in nodes) {
+            foreach (HtmlNode node in nodes)
+            {
                 if (!node.Attributes["href"].Value.Contains("./details.php?image_id="))
-                  continue;
+                    continue;
                 //http://comicartcommunity.com/gallery/details.php?image_id=47490
                 Uri imagePageUrl = new Uri("http://comicartcommunity.com/gallery" + node.Attributes["href"].Value.Substring(1));
-                String imagePageContents = GetPageContents(imagePageUrl);
-                HtmlDocument imageDocument = new HtmlDocument();
-                imageDocument.LoadHtml(imagePageContents);
 
-                HtmlNode imageNode = imageDocument.DocumentNode.SelectSingleNode("//div/img");
-                if (imageNode == null)
-                    throw new Exception("Image node not found");
-                //http://comicartcommunity.com/gallery/data/media/116/Barb_Wire_1_2.jpg
-                String newUrl = "http://comicartcommunity.com/gallery" + imageNode.Attributes["src"].Value.Substring(1);
-                output.Add(new MediaSourceResult(new Uri(newUrl), imagePageUrl, this.url));
+                output.Add(new MediaSourceResult(imagePageUrl, page_url, this.url, this, MediaResultType.DownloadSource, "image"));
+
+            }
+
+
+            return output;
+        }
+
+        private MediaSourceResults GetImages(Uri page_url, String page_contents)
+        {
+            MediaSourceResults output = new MediaSourceResults();
+
+            HtmlDocument imageDocument = new HtmlDocument();
+            imageDocument.LoadHtml(page_contents);
+
+            HtmlNodeCollection imageNodes = imageDocument.DocumentNode.SelectNodes("//div//img");
+            if (imageNodes == null||imageNodes.Count==0)
+                throw new Exception("Image node not found");
+
+            foreach(HtmlNode imageNode in imageNodes)
+            {
+                String srcAttribute = imageNode.Attributes["src"].Value.Substring(1);
+                if(srcAttribute.StartsWith("/data/media/")) {
+                    //http://comicartcommunity.com/gallery/data/media/116/Barb_Wire_1_2.jpg
+                    String newUrl = "http://comicartcommunity.com/gallery" + srcAttribute;
+                    output.Add(new MediaSourceResult(new Uri(newUrl), page_url, this.url, this, MediaResultType.Download));
+                }
             }
 
             return output;
-
         }
 
-
+        }
     }
-}

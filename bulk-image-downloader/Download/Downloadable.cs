@@ -287,8 +287,17 @@ namespace BulkMediaDownloader.Download {
         private int FileNameIncrement = 0;
 
         private void IncrementFileName() {
-            string filename = Path.GetFileNameWithoutExtension(this.FileName);
-            string ext = Path.GetExtension(this.FileName);
+            String originalName;
+            if (String.IsNullOrEmpty(this.OriginalFileName))
+            {
+                originalName = this.FileName;
+                this.OriginalFileName = this.FileName;
+            }
+            else
+                originalName = this.OriginalFileName;
+
+            string filename = Path.GetFileNameWithoutExtension(originalName);
+            string ext = Path.GetExtension(originalName);
             FileNameIncrement++;
 
             string post_file_portion = " (" + FileNameIncrement.ToString() + ")" + ext;
