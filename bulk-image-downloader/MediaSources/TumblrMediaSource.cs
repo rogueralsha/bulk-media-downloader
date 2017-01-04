@@ -315,6 +315,27 @@ namespace BulkMediaDownloader.MediaSources
                 output.Add(new MediaSourceResult(uri, page_url, this.url, this, MediaResultType.Download));
             }
 
+
+            List<MediaSourceResult> results = getImagesAndDirectLinkedMedia(page_url, page_contents);
+            
+            foreach(MediaSourceResult result in results)
+            {
+                //http://68.media.tumblr.com/avatar_964f1f5696fe_64.png
+                String url = result.URL.ToString().ToLower();
+                if (url.Contains(@"media.tumblr.com/avatar_"))
+                    continue;
+                //https://px.srvcs.tumblr.com/impixu?T=1481300680&J=eyJ0eXBlIjoidXJsIiwidXJsIjoiaHR0cDpcL1wvc3BlZWRvc2F1c2FnZS50dW1ibHIuY29tXC9wb3N0XC8xNTQwOTg2Mjg2MTlcL2xhbmEiLCJyZXF0eXBlIjowLCJyb3V0ZSI6IlwvcG9zdFwvOmlkXC86c3VtbWFyeSIsIm5vc2NyaXB0IjoxfQ==&U=DNILNAFJHJ&K=75226a1f7b719f62324baad7b1a6d0b305bc37cfd6426596c67b82490ea37a3b&R=http:%2F%2Fspeedosausage.tumblr.com%2Farchive%2F
+                if (url.Contains("px.srvcs.tumblr.com/impixu"))
+                    continue;
+                //http://assets.tumblr.com/images/default_avatar/octahedron_open_16.png
+                if (url.Contains("assets.tumblr.com/images/"))
+                    continue;
+
+                output.Add(result);
+            }
+            
+            
+
             return output;
         }
         

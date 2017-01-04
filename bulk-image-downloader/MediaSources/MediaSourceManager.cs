@@ -14,7 +14,7 @@ namespace BulkMediaDownloader.MediaSources {
             typeof(ArtstationMediaSource),
             typeof(BloggerMediaSource),
             typeof(ComicArtCommunityMediaSource),
-            //typeof(FlickrMediaSource),
+            typeof(FlickrMediaSource),
             //typeof(GelbooruMediaSource),
             typeof(GfycatMediaSource),
             typeof(HentaiFoundryMediaSource),

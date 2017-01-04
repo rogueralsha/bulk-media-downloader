@@ -9,8 +9,7 @@ using System.Threading.Tasks;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 
-namespace BulkMediaDownloader.MediaSources
-{
+namespace BulkMediaDownloader.MediaSources {
     public class FlickrMediaSource : AMediaSource {
         //https://www.flickr.com/photos/29383501@N08/
         private String base_url;
@@ -18,17 +17,21 @@ namespace BulkMediaDownloader.MediaSources
         private static Regex api_key_regex = new Regex(@"root\.YUI_config\.flickr\.api\.site_key = ""([^""]+)"";");
         private string album_name, user_id, api_key;
 
-        private const  int MAX_PER_PAGE = 500;
+        private const int MAX_PER_PAGE = 500;
 
         public FlickrMediaSource(Uri url)
             : base(url) {
 
-            if (!address_regex.IsMatch(url.ToString())) {
+            if (!ValidateUrl(url)) {
                 throw new Exception("Flickr url not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             setAlbumName(url);
-            worker.ReportProgress(-1, "Flickr API key: " + api_key);
+            sendStatus("Flickr API key: " + api_key);
+        }
+
+        public static bool ValidateUrl(Uri url) {
+            return address_regex.IsMatch(url.ToString());
         }
 
         public override string getFolderNameFromURL(Uri url) {
@@ -46,7 +49,7 @@ namespace BulkMediaDownloader.MediaSources
 
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             this.base_url = address_matches[0].Value;
-            this.user_id= address_matches[0].Groups[1].Value;
+            this.user_id = address_matches[0].Groups[1].Value;
             Dictionary<string, dynamic> values = getFlickrRestAPIResponse(getPhotoStreamRestUrl(this.user_id), new Uri(this.base_url));
             this.album_name = values["user"]["username"];
         }
@@ -73,63 +76,82 @@ namespace BulkMediaDownloader.MediaSources
             return new Uri(@"https://api.flickr.com/services/rest?per_page=" + per_page + "&page=" + page + "&get_user_info=1&user_id=" + user_id + "&view_as=use_pref&sort=use_pref&viewerNSID=&method=flickr.people.getPhotos&csrf=&api_key=" + api_key + "&format=json&hermes=1&hermesClient=1&nojsoncallback=1");
         }
 
-        protected override HashSet<Uri> GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url, string page_contents, string stage) {
+            switch (stage) {
+                case INITIAL_STAGE:
+                    return GetGalleryPages(url, page_contents);
+                case "gallery":
+                    return GetImagePages(url, page_contents);
+                case "image":
+                    return GetImages(url, page_contents);
+                default:
+                    throw new NotSupportedException(stage);
+            }
+        }
+
+
+        private MediaSourceResults GetGalleryPages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
 
             Dictionary<string, dynamic> values = getFlickrRestAPIResponse(getPhotoStreamRestUrl(this.user_id, per_page: MAX_PER_PAGE), new Uri(this.base_url));
 
             String totalPagesString = values["photos"]["pages"];
             int pages;
-            if(!int.TryParse(totalPagesString, out pages)) {
+            if (!int.TryParse(totalPagesString, out pages)) {
                 throw new Exception("Total pages not found in JSON");
             }
 
-            for(int i = 1; i<= pages; i++) {
-                output.Add(getPhotoStreamRestUrl(this.user_id, page: i, per_page: MAX_PER_PAGE));
+            for (int i = 1; i <= pages; i++) {
+                Uri restUrl = getPhotoStreamRestUrl(this.user_id, page: i, per_page: MAX_PER_PAGE);
+                output.Add(new MediaSourceResult(restUrl, url, this.url, this, MediaResultType.DownloadSource, "gallery"));
             }
+
             return output;
         }
 
-
-        public override HashSet<MediaSourceResult> GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
+        private MediaSourceResults GetImagePages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+            sendStatus("Fetching image pages from " + page_url.ToString());
             Dictionary<string, dynamic> stream_values = filterFlickrResponse(page_contents);
 
             Newtonsoft.Json.Linq.JArray photos = stream_values["photos"]["photo"];
 
             foreach (Dictionary<String, dynamic> photo in photos.ToObject<List<Dictionary<String, dynamic>>>()) {
                 String id = photo["id"];
-                Dictionary<string, dynamic> photo_values = getFlickrRestAPIResponse(getPhotoSizesRestUrl(id), page_url);
-                Newtonsoft.Json.Linq.JArray sizes = photo_values["sizes"]["size"];
+                Uri imageUri = getPhotoSizesRestUrl(id);
+                output.Add(new MediaSourceResult(imageUri, page_url, this.url, this, MediaResultType.DownloadSource, "image"));
 
-                String candidate = "";
-                long candidateSize = 0;
-                foreach (Dictionary<String, dynamic> size in sizes.ToObject<List<Dictionary<String, dynamic>>>()) {
-                    String heightString = size["height"].ToString();
-                    String widthString = size["width"].ToString();
-                    int height, width;
-                    if (!int.TryParse(heightString, out height))
-                        throw new Exception("Could not parse height");
-                    if (!int.TryParse(widthString, out width))
-                        throw new Exception("Could not parse height");
-                    long pixelCount = height * width;
-                    if(pixelCount>candidateSize) {
-                        candidateSize = pixelCount;
-                        candidate = size["source"];
-                    }
-                }
-                if (String.IsNullOrEmpty(candidate))
-                    throw new Exception("Could not find size candidate for image " + id);
-
-                output.Add(new MediaSourceResult(new Uri(candidate), page_url, this.url));
             }
 
             return output;
-
         }
 
+        private MediaSourceResults GetImages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+            Dictionary<string, dynamic> photo_values = getFlickrRestAPIResponse(page_url, page_url);
+            Newtonsoft.Json.Linq.JArray sizes = photo_values["sizes"]["size"];
 
+            String candidate = "";
+            long candidateSize = 0;
+            foreach (Dictionary<String, dynamic> size in sizes.ToObject<List<Dictionary<String, dynamic>>>()) {
+                String heightString = size["height"].ToString();
+                String widthString = size["width"].ToString();
+                int height, width;
+                if (!int.TryParse(heightString, out height))
+                    throw new Exception("Could not parse height");
+                if (!int.TryParse(widthString, out width))
+                    throw new Exception("Could not parse height");
+                long pixelCount = height * width;
+                if (pixelCount > candidateSize) {
+                    candidateSize = pixelCount;
+                    candidate = size["source"];
+                }
+            }
+            if (String.IsNullOrEmpty(candidate))
+                throw new Exception("Could not find size candidate for image " + page_url.ToString());
+
+            output.Add(new MediaSourceResult(new Uri(candidate), page_url, this.url, this, MediaResultType.Download));
+            return output;
+        }
     }
 }

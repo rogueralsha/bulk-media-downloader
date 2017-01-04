@@ -250,7 +250,7 @@
     <Compile Include="Download\DownloadManager.cs" />
     <Compile Include="MediaSources\4ChanMediaSource.cs" />
     <Compile Include="MediaSources\AMediaSource.cs" />
-    <None Include="MediaSources\FlickrMediaSource.cs" />
+    <Compile Include="MediaSources\FlickrMediaSource.cs" />
     <None Include="MediaSources\JuiceBoxConfigFile.cs" />
     <None Include="MediaSources\JuiceBoxMediaSource.cs" />
     <None Include="MediaSources\NextGENMediaSource.cs" />
