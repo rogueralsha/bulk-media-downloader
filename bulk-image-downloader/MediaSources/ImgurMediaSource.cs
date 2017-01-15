@@ -8,115 +8,123 @@ using System.Net;
 using System.IO;
 using System.Xml;
 using System.Text.RegularExpressions;
+using HtmlAgilityPack;
+using Newtonsoft.Json;
 
 namespace BulkMediaDownloader.MediaSources
 {
-    public class ImgurMediaSource: ASitemapMediaSource {
-        private static Regex address_regex = new Regex(@"(http[s]?://([^\.]+).imgur.com/.+)");
+    public class ImgurMediaSource: AMediaSource {
+        //http://sexycyborg.imgur.com/
+        private static Regex user_regex = new Regex(@"http[s]?:\/\/([^\.]+)\.imgur\.com\/.+");
+        //http://imgur.com/a/4aAPS
+        private static Regex album_regex = new Regex(@"http[s]?:\/\/imgur\.com\/a\/(.+)");
+        //http://i.imgur.com/yuVxOjz.jpg
+        private static Regex image_regex = new Regex(@"http[s]?:\/\/i\.imgur\.com/.+");
 
         private string album_name;
         int results_per_page = 500;
 
         public ImgurMediaSource(Uri url)
             : base(url) {
-            throw new NotImplementedException("Imgur's not done, finish it!");
 
             if (!ValidateUrl(url))
             {
                 throw new Exception("Imgur URL not understood");
             }
-            MatchCollection address_matches = address_regex.Matches(url.ToString());
-            album_name = address_matches[0].Groups[2].Value;
+            album_name = getFolderNameFromURL(url);
 
         }
 
 
         public static bool ValidateUrl(Uri url) {
-            return address_regex.IsMatch(url.ToString());
+            return album_regex.IsMatch(url.ToString()) || user_regex.IsMatch(url.ToString()) || image_regex.IsMatch(url.ToString());
         }
 
         public override string getFolderNameFromURL(Uri url)
         {
-            if (!ValidateUrl(url))
-            {
+            if (user_regex.IsMatch(url.ToString())) {
+                MatchCollection address_matches = user_regex.Matches(url.ToString());
+                string album_name = address_matches[0].Groups[1].Value;
+                return album_name;
+            } else if (album_regex.IsMatch(url.ToString())) {
+                String contents = GetPageContents(url);
+                HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+                doc.LoadHtml(contents);
+                //        <meta property="og:title" content="Pi Palette- Hacker&#039;s Cosmetic Case"/>
+                HtmlNode typeNode = doc.DocumentNode.SelectSingleNode("//meta[@property='og:title']");
+                if (typeNode == null)
+                    throw new Exception("Can't find post title node");
+
+                MatchCollection address_matches = album_regex.Matches(url.ToString());
+                string album_name = address_matches[0].Groups[1].Value + " - " + typeNode.Attributes["content"].Value;
+                return album_name;
+                //post-title
+            } else if(image_regex.IsMatch(url.ToString())) {
+                return string.Empty;
+            } else             {
                     throw new Exception("Imgur URL not understood");
             }
-            MatchCollection address_matches = address_regex.Matches(url.ToString());
-            string album_name = address_matches[0].Groups[2].Value;
-            return album_name;
+
         }
 
-        private XmlNodeList GetEntries(string page_contents)
-        {
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml(page_contents);
-
-            XmlNodeList nodes = doc.GetElementsByTagName("entry");
-            return nodes;
+        protected override MediaSourceResults ProcessDownloadSourceInternal(Uri url, string page_contents, string stage) {
+            switch (stage) {
+                case INITIAL_STAGE:
+                    return DetermineAction(url, page_contents);
+                case ALBUM_STAGE:
+                    return GetAlbumImages(url, page_contents);
+                case USER_STAGE:
+                    return new MediaSourceResults();
+                default:
+                    throw new NotSupportedException(stage);
+            }
         }
 
-        private Uri constructPageUrl(Uri base_url, int offset)
-        {
-            UriBuilder output = new UriBuilder(base_url);
-            // http://aaaninja.blogspot.com/atom.xml?redirect=false&start-index=1&max-results=500
+        private const String USER_STAGE = "user";
+        private const String ALBUM_STAGE = "album";
 
-            output.Query = "redirect=false&start-index=" + offset + "&max-results=" + results_per_page;
-
-            return output.Uri;
+        private MediaSourceResults DetermineAction(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
+            if (image_regex.IsMatch(page_url.ToString())) {
+                output.Add(new MediaSourceResult(page_url, page_url, this.url, this, MediaResultType.Download));
+            } else if (user_regex.IsMatch(page_url.ToString())) {
+                output.Add(new MediaSourceResult(page_url, page_url, this.url, this, MediaResultType.DownloadSource,USER_STAGE));
+            } else if (album_regex.IsMatch(page_url.ToString())) {
+                output.Add(new MediaSourceResult(page_url, page_url, this.url, this, MediaResultType.DownloadSource, ALBUM_STAGE));
+            } else {
+                throw new Exception("URL not supported: " + page_url.ToString());
+            }
+            return output;
         }
 
-        private dynamic GetPages(Uri page_url, String page_contents) {
-            HashSet<Uri> output = new HashSet<Uri>();
+        private MediaSourceResults GetAlbumImages(Uri page_url, String page_contents) {
+            MediaSourceResults output = new MediaSourceResults();
 
-            int offset = 1;
-            Uri current_url = constructPageUrl(page_url, offset);
-            XmlNodeList nodes = GetEntries(page_contents);
+            //http://imgur.com/ajaxalbums/getimages/4aAPS/hit.json
 
-            while(nodes.Count>0)
-            {
-                output.Add(current_url);
-                offset += results_per_page;
-                current_url = constructPageUrl(page_url, offset);
-                page_contents = GetPageContents(current_url);
-                nodes = GetEntries(page_contents);
+            MatchCollection address_matches = album_regex.Matches(url.ToString());
+            string album_id = address_matches[0].Groups[1].Value;
+
+
+            String json = GetPageContents(new Uri(@"http://imgur.com/ajaxalbums/getimages/" + album_id + "/hit.json"), page_url);
+
+            Dictionary<string, dynamic> values = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(json);
+            Object data = values["data"];
+            Dictionary<dynamic,dynamic> dataList = JsonConvert.DeserializeObject<Dictionary<dynamic,dynamic>>(data.ToString());
+            data = dataList["images"];
+            List<dynamic> images = JsonConvert.DeserializeObject<List<dynamic>>(data.ToString());
+            foreach (Object image in images) {
+                values = JsonConvert.DeserializeObject<Dictionary<string, dynamic>>(image.ToString());
+                String hash = values["hash"];
+                String extension = values["ext"];
+                Uri imageUri = new Uri("http://i.imgur.com/" + hash + extension);
+                MediaSourceResult msr = new MediaSourceResult(imageUri, page_url, this.url, this, MediaResultType.Download);
+                msr.Subfolder = album_name;
+                output.Add(msr);
             }
 
             return output;
-
         }
-
-
-        private dynamic GetMediaFromPage(Uri page_url) {
-            String page_contents = this.GetPageContents(page_url);
-            HashSet<MediaSourceResult> output = new HashSet<MediaSourceResult>();
-
-            XmlNodeList nodes = GetEntries(page_contents);
-            foreach(XmlNode node in nodes)
-            {
-                if (node.Attributes["html"].Value != "html")
-                    continue;
-
-                XmlNode contentNode = getChildNode(node, "content", "type", "html");
-                if (contentNode == null)
-                    continue;
-
-                XmlNode linkNode = getChildNode(node, "link", "rel", "htmself");
-                if (contentNode == null)
-                    continue;
-
-                Uri self_url = new Uri(linkNode.Attributes["href"].Value);
-                String entry = WebUtility.HtmlDecode(node.InnerText);
-
-                //foreach (Uri url in getImagesAndDirectLinkedMedia(self_url, entry))
-                //{
-                //    output.Add(new MediaSourceResult(url, self_url, this.url));
-                //}
-            }
-            return output;
-
-        }
-
-
 
     }
 }

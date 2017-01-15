@@ -22,6 +22,9 @@ namespace BulkMediaDownloader.MediaSources
         public readonly Uri URL;
         public readonly Uri Referrer;
         public readonly Uri Site;
+
+        public String Subfolder = String.Empty;
+
         public bool SimpleHeaders = false;
 
         public MediaSourceResult(Uri url, Uri referrer, Uri site, AMediaSource media_source, MediaResultType type, String stage = null)

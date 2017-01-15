@@ -12,24 +12,23 @@ using HtmlAgilityPack;
 
 namespace BulkMediaDownloader.MediaSources
 {
-    public class GfycatMediaSource: AMediaSource {
+    public class WebmshareMediaSource : AMediaSource {
         //http://www.hentai-foundry.com/pictures/user/GENSHI
-        private static Regex address_regex = new Regex(@"(.+gfycat.com/.+)");
+        private static Regex address_regex = new Regex(@"(.+webmshare.com/.+)");
 
-        private static Regex media_address_regex = new Regex(@"(.+gfycat.com/[^/]+)");
+        private static Regex media_address_regex = new Regex(@"(.+webmshare.com/[^/]+)");
 
         private string album_name;
 
-        public GfycatMediaSource(Uri url)
+        public WebmshareMediaSource(Uri url)
             : base(url) {
 
             if (!ValidateUrl(url)) {
-                throw new Exception("Gfycat URL not understood");
+                throw new Exception("Webmshare URL not understood");
             }
 
             if (url.ToString().Contains("@"))
                 throw new Exception("Gallery links not yet supported");
-            //https://gfycat.com/@rogueralsha/carrie_keagan_as_power_girl
 
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             album_name = address_matches[0].Groups[2].Value;
@@ -45,7 +44,7 @@ namespace BulkMediaDownloader.MediaSources
         {
             if (!ValidateUrl(url))
             {
-                    throw new Exception("Gfycat URL not understood");
+                    throw new Exception("Webmshare URL not understood");
             }
             MatchCollection address_matches = address_regex.Matches(url.ToString());
             string album_name = address_matches[0].Groups[2].Value;
@@ -76,27 +75,28 @@ namespace BulkMediaDownloader.MediaSources
         private MediaSourceResults GetMediaFromPage(Uri page_url, String page_contents) {
             MediaSourceResults output = new MediaSourceResults();
 
-            //<source id="webmSource" src="https://giant.gfycat.com/YawningBlaringGuanaco.webm" type="video/webm">
-            //<source id="mp4Source" src="https://fat.gfycat.com/YawningBlaringGuanaco.mp4" type="video/mp4">
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(page_contents);
-            HtmlNode node = doc.GetElementbyId("webmSource");
-            try {
-                if (node != null && node.Attributes["src"] != null && !String.IsNullOrWhiteSpace(node.Attributes["src"].Value))
-                    output.Add(new MediaSourceResult(new Uri(node.Attributes["src"].Value), page_url,this.url, this, MediaResultType.Download));
-            } catch (Exception e) {
-                Console.Out.WriteLine(e.Message);
-            }
-            // MP4s are lower qualiuty from gfycat
-            //node = doc.GetElementbyId("mp4Source");
-            //try {
-            //    if (node != null && node.Attributes["src"] != null && !String.IsNullOrWhiteSpace(node.Attributes["src"].Value))
-            //        output.Add(new MediaSourceResult(new Uri(node.Attributes["src"].Value), page_url, this.url, this, MediaResultType.Download));
-            //} catch (Exception e) {
-            //    Console.Out.WriteLine(e.Message);
-            //}
 
-            output.Add(new MediaSourceResult(url, null, url, MediaSourceManager.GetMediaSourceForUrl(url), MediaResultType.DownloadSource, INITIAL_STAGE));
+            HtmlNode node = doc.DocumentNode.SelectSingleNode("//source");
+            if (node != null) {
+                    String src;
+                    try {
+                        if (node.Attributes["src"] == null)
+                            return output;
+                        src = node.Attributes["src"].Value;
+
+                        if (!String.IsNullOrWhiteSpace(src)) {
+                            Uri href_url = GenerateFullUrl(page_url, src);
+
+                            // Check for media file extensions
+                            output.Add(new MediaSourceResult(href_url, page_url, this.url, this, MediaResultType.Download));
+                        }
+
+                    } catch (Exception e) {
+                        Console.Out.WriteLine(e.Message);
+                    }
+            }
 
 
             return output;

@@ -208,6 +208,10 @@
     <Compile Include="Download\DownloadablesSource.cs" />
     <Compile Include="Download\IGetCredentials.cs" />
     <Compile Include="Exceptions\UrlNotRecognizedException.cs" />
+    <Compile Include="MediaSources\EHentaiMediaSource.cs" />
+    <Compile Include="MediaSources\DropBoxMediaSource.cs" />
+    <Compile Include="MediaSources\GoogleDriveMediaSource.cs" />
+    <Compile Include="MediaSources\WebmshareMediaSource.cs" />
     <Compile Include="MediaSources\ImageFapMediaSource.cs" />
     <Compile Include="MediaSources\PixivMediaSource.cs" />
     <Compile Include="MediaSources\ASitemapMediaSource.cs" />

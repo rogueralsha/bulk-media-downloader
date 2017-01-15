@@ -12,6 +12,7 @@ using System.Threading;
 using CefSharp;
 using CefSharp.OffScreen;
 using HtmlAgilityPack;
+using System.Diagnostics;
 
 namespace BulkMediaDownloader.MediaSources
 {
@@ -292,14 +293,45 @@ namespace BulkMediaDownloader.MediaSources
                     }
                 }
             }
+
+            // Get all sources
+            //<video class="center-block" style="vertical-align: middle; width: 100%; max-width:1280px;" preload="auto" controls="controls" autoplay loop>
+            //< source src = "//s1.webmshare.com/nGMdr.webm" type = "video/webm" />
+            nodes = doc.DocumentNode.SelectNodes("//source");
+            if (nodes != null) {
+                foreach (HtmlNode imageNode in nodes) {
+                    String src;
+                    try {
+                        if (imageNode.Attributes["src"] == null)
+                            continue;
+                        src = imageNode.Attributes["src"].Value;
+
+                        if (!String.IsNullOrWhiteSpace(src)) {
+                            Uri href_url = GenerateFullUrl(base_url, src);
+
+                            // Check for media file extensions
+                            output.Add(new MediaSourceResult(href_url, base_url, this.url, this, MediaResultType.Download));
+                        }
+
+                    } catch (Exception e) {
+                        Console.Out.WriteLine(e.Message);
+                    }
+                }
+            }
+
+
             return output;
         }
 
         protected bool isMediaFile(String path)
         {
+            Uri testUri = new Uri(path);
+            path = testUri.AbsolutePath;
+
+
             foreach (String extension in Properties.Settings.Default.MediaExtensions)
             {
-                if (path.Contains("." + extension))
+                if (path.ToLower().EndsWith("." + extension.ToLower()))
                 {
                     return true;
                 }
@@ -315,7 +347,7 @@ namespace BulkMediaDownloader.MediaSources
                 AMediaSource source = MediaSourceManager.GetMediaSourceForUrl(url, true);
                 output.Add(new MediaSourceResult(url, null, url, source, MediaResultType.DownloadSource, INITIAL_STAGE));
             } catch (UrlNotRecognizedException ex) {
-                Console.Out.WriteLine("Unsupported, eh?");
+                Debug.WriteLine("Unsupported url: " + url.ToString());
             }
 
             return output;

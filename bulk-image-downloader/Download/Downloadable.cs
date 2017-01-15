@@ -81,7 +81,6 @@ namespace BulkMediaDownloader.Download {
 
         public bool SimpleHeaders { get; set; }
 
-
         private DateTime download_start_time;
 
         [XmlIgnore]
@@ -306,6 +305,7 @@ namespace BulkMediaDownloader.Download {
             } else {
                 this._OverrideFileName = filename + post_file_portion;
             }
+            NotifyPropertyChanged("FileName");
         }
 
         private void setUpClient() {
@@ -331,7 +331,31 @@ namespace BulkMediaDownloader.Download {
                 }
             }
 
-            FileInfo fi = new FileInfo(this.GetDownloadPath());
+            //// Check if there's a new name coming our way
+            //using (SuperWebClient swc = new SuperWebClient()) {
+            //    WebHeaderCollection headers = swc.GetHeaders(this.URL, this.RefererURL, true);
+            //    String disposition = headers["content-disposition"];
+            //    if(!String.IsNullOrWhiteSpace(disposition)) {
+            //        //attachment;filename="SelfieHoSocial.png";filename*=UTF-8''SelfieHoSocial.png
+            //        String[] args = disposition.Split(';');
+            //        String filename = String.Empty, utf8Filename = String.Empty;
+            //        foreach(String arg in args) {
+            //            if (arg.StartsWith("filename="))
+            //                filename = arg.Substring(9);
+            //            if (arg.StartsWith("filename*=UTF-8''"))
+            //                utf8Filename = arg.Substring(17);
+            //        }
+            //        if (!String.IsNullOrWhiteSpace(utf8Filename)) {
+            //            this._OverrideFileName = utf8Filename;
+            //            this.OriginalFileName = utf8Filename;
+            //        } else if (!String.IsNullOrWhiteSpace(filename)) {
+            //            this._OverrideFileName = filename;
+            //            this.OriginalFileName = filename;
+            //        }
+            //    }
+            //}
+
+                FileInfo fi = new FileInfo(this.GetDownloadPath());
 
             if (!fi.Directory.Exists) {
                 fi.Directory.Create();
@@ -420,6 +444,29 @@ namespace BulkMediaDownloader.Download {
                     //        throw new NotSupportedException();
                     //}
 
+                    String disposition = client.ResponseHeaders["content-disposition"];
+                    if (!String.IsNullOrWhiteSpace(disposition)) {
+                        //attachment;filename="SelfieHoSocial.png";filename*=UTF-8''SelfieHoSocial.png
+                        String[] args = disposition.Split(';');
+                        String filename = String.Empty, utf8Filename = String.Empty;
+                        foreach (String arg in args) {
+                            String argTrimmed = arg.Trim();
+                            if (argTrimmed.StartsWith("filename="))
+                                filename = argTrimmed.Substring(9);
+                            if (argTrimmed.StartsWith("filename*=UTF-8''"))
+                                utf8Filename = argTrimmed.Substring(17);
+                        }
+                        if (!String.IsNullOrWhiteSpace(utf8Filename)) {
+                            this._OverrideFileName = utf8Filename;
+                            this.OriginalFileName = utf8Filename;
+                            NotifyPropertyChanged("FileName");
+                        } else if (!String.IsNullOrWhiteSpace(filename)) {
+                            this._OverrideFileName = filename;
+                            this.OriginalFileName = filename;
+                            NotifyPropertyChanged("FileName");
+                        }
+                    }
+
                     FileInfo fi = new FileInfo(this.GetDownloadPath());
 
                     if (!fi.Directory.Exists) {
@@ -478,6 +525,8 @@ namespace BulkMediaDownloader.Download {
             if (filename.Length > 248) {
                 filename = filename.Substring(0, 248 - ext.Length) + ext;
             }
+
+
 
             if (filename.Length + this.DownloadDir.Length + 1 > 260) {
                 if (260 - this.DownloadDir.Length - ext.Length - 2 <= 0) {

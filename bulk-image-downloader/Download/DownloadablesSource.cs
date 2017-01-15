@@ -87,6 +87,14 @@ namespace BulkMediaDownloader.Download {
             }
         }
 
+        [XmlIgnore]
+        [NotMapped]
+        public string Speed {
+            get {
+                return "";
+            }
+        }
+
 
 
         public DownloadablesSource() {

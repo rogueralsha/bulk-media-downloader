@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net;
+using System.Diagnostics;
 
 namespace BulkMediaDownloader {
     public class SuperWebClient : WebClient {
@@ -112,15 +113,17 @@ namespace BulkMediaDownloader {
             string headers = request.Headers.ToString();
             HttpWebRequest hwr = (HttpWebRequest)request;
             CookieCollection cc = hwr.CookieContainer.GetCookies(request.RequestUri);
-
+            Debug.WriteLine("GetWebResponse: " + request.RequestUri.ToString());
+            if (request.RequestUri.ToString().Contains("http://www.rayjbraz.com.br/"))
+                Debug.WriteLine("Problem address");
             return base.GetWebResponse(request);
         }
 
-        public WebHeaderCollection  GetHeaders(Uri address, Uri referrer = null) {
+        public WebHeaderCollection  GetHeaders(Uri address, Uri referrer = null, bool autoRedirect  = false) {
             HttpWebRequest req = (HttpWebRequest)this.GetWebRequest(address);
 
             req.Method = "HEAD";
-            req.AllowAutoRedirect = false;
+            req.AllowAutoRedirect = autoRedirect;
 
             if (referrer != null) {
                 req.Referer = referrer.AbsoluteUri;

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using BulkMediaDownloader.MediaSources;
 using BulkMediaDownloader.Model;
 using System.ComponentModel.DataAnnotations.Schema;
-
+using System.Diagnostics;
 
 namespace BulkMediaDownloader.Download {
 
@@ -225,6 +225,10 @@ namespace BulkMediaDownloader.Download {
             ADownloadable down;
             switch (media.Type) {
                 case MediaSources.MediaResultType.Download:
+                    DirectoryInfo dinfo = new DirectoryInfo(download_dir);
+                    if(!string.IsNullOrWhiteSpace(media.Subfolder)&&dinfo.Name.ToLower()!=media.Subfolder.ToLower()) {
+                        download_dir = Path.Combine(download_dir, media.Subfolder);
+                    }
                     Downloadable downloadable = new Downloadable(media.URL, media.Referrer, download_dir);
                     downloadable.DataType = DownloadType.Binary;
                     downloadable.Site = media.Site;

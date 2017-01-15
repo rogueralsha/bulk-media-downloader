@@ -26,12 +26,19 @@ namespace BulkMediaDownloader.MediaSources {
             typeof(ShimmieMediaSource),
             typeof(SitemapMediaSource),
             typeof(TumblrMediaSource),
-            typeof(DeviantArtMediaSource)
+            typeof(DeviantArtMediaSource),
+            typeof(WebmshareMediaSource),
+            typeof(GoogleDriveMediaSource),
+            typeof(DropBoxMediaSource),
+            typeof(EHentaiMediaSource)
             };
 
         private static readonly IList<Type> hostedMediaSources = new List<Type> {
             typeof(GfycatMediaSource),
             typeof(ImgurMediaSource),
+            typeof(WebmshareMediaSource),
+            typeof(GoogleDriveMediaSource),
+            typeof(DropBoxMediaSource)
             };
 
 

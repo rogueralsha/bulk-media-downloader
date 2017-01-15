@@ -171,11 +171,15 @@ namespace BulkMediaDownloader.MediaSources
                 try {
                     String redirect_string = Uri.UnescapeDataString(redirect_match.Groups[1].Value);
                     Uri redirect_url = new Uri(redirect_string);
-                    if (isMediaFile(redirect_url.ToString())) {
-                        output.Add(new MediaSourceResult(redirect_url, null, this.url, this, MediaResultType.Download));
-                        sendStatus("Redirect URL found: " + redirect_url.ToString());
+
+                    List<MediaSourceResult> hostedResults = getHostedMedia(redirect_url);
+                    if (hostedResults.Count > 0) {
+                        output.AddRange(hostedResults);
                     } else {
-                        output.AddRange(getHostedMedia(redirect_url));
+                        if (isMediaFile(redirect_url.ToString())) {
+                            output.Add(new MediaSourceResult(redirect_url, null, this.url, this, MediaResultType.Download));
+                            sendStatus("Redirect URL found: " + redirect_url.ToString());
+                        }
                     }
                 } catch (Exception e) {
                     Console.Out.WriteLine(e.Message);
@@ -294,25 +298,30 @@ namespace BulkMediaDownloader.MediaSources
             }
 
             foreach (Uri uri in image_urls) {
+                bool addOriginalUrl = true;
                 if (tumblr_image_regex.IsMatch(uri.ToString())) {
                     Match image_m = tumblr_image_regex.Match(uri.ToString());
                     String res_string = image_m.Groups[1].Value;
                     int res = int.Parse(res_string);
                     if (res < 1280) {
+                        WebHeaderCollection originalHeader = this.GetHeaders(uri, page_url);
+
                         StringBuilder new_uri_string = new StringBuilder(uri.ToString());
                         new_uri_string.Remove(image_m.Groups[1].Index, image_m.Groups[1].Length);
                         new_uri_string.Insert(image_m.Groups[1].Index, "1280");
                         Uri new_uri = new Uri(new_uri_string.ToString());
                         try {
-                            this.GetHeaders(new_uri, page_url);
+                            WebHeaderCollection header1280 = this.GetHeaders(new_uri, page_url);
+                            if (header1280[HttpResponseHeader.ContentLength] == originalHeader[HttpResponseHeader.ContentLength])
+                                addOriginalUrl = false;
                             output.Add(new MediaSourceResult(new_uri, page_url, this.url, this, MediaResultType.Download));
                         } catch (WebException ex) {
                             Console.Out.WriteLine(ex.Message);
                         }
                     }
                 }
-
-                output.Add(new MediaSourceResult(uri, page_url, this.url, this, MediaResultType.Download));
+                if(addOriginalUrl)
+                    output.Add(new MediaSourceResult(uri, page_url, this.url, this, MediaResultType.Download));
             }
 
 
