@@ -141,7 +141,7 @@ namespace BulkMediaDownloader {
             if (!loginWindow.ShowDialog().Value) {
                 return false;
             }
-            AMediaSource.SetCookies(loginWindow.FoundCookies);
+            SuperWebClient.SetCookies(loginWindow.FoundCookies);
             return true;
         }
 

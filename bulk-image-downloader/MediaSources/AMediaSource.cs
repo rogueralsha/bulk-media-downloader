@@ -35,7 +35,7 @@ namespace BulkMediaDownloader.MediaSources
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        protected static SuperWebClient TheWebClient = new SuperWebClient();
+        //protected static SuperWebClient TheWebClient = new SuperWebClient();
 
         public event EventHandler<MediaSourceEventArgs> StatusChanged;
 
@@ -98,10 +98,6 @@ namespace BulkMediaDownloader.MediaSources
             }
         }
 
-        public static void SetCookies(List<CefSharp.Cookie> new_cookies)
-        {
-            TheWebClient.SetCookies(new_cookies);
-        }
 
         public virtual string getFolderNameFromURL(Uri url)
         {
@@ -130,7 +126,9 @@ namespace BulkMediaDownloader.MediaSources
             {
                 try
                 {
-                    return TheWebClient.GetRedirectURL(url, referer);
+                    using (SuperWebClient client = new SuperWebClient()) {
+                        return client.GetRedirectURL(url, referer);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -151,7 +149,9 @@ namespace BulkMediaDownloader.MediaSources
         protected HttpStatusCode GetResponseStatusCode(Uri url, Uri referer = null) {
             for (int i = 0; i < WebRequestRetryCount; i++) {
                 try {
-                    return TheWebClient.GetResponseStatusCode(url, referer);
+                    using (SuperWebClient client = new SuperWebClient()) {
+                        return client.GetResponseStatusCode(url, referer);
+                    }
                 } catch (Exception ex) {
                     if (i == WebRequestRetryCount - 1) {
                         throw new WebException("Error while attempting to get header for: " + url.ToString(), ex);
@@ -167,7 +167,9 @@ namespace BulkMediaDownloader.MediaSources
         protected WebHeaderCollection GetHeaders(Uri url, Uri referer = null) {
             for (int i = 0; i < WebRequestRetryCount; i++) {
                 try {
-                    return TheWebClient.GetHeaders(url, referer);
+                    using (SuperWebClient client = new SuperWebClient()) {
+                        return client.GetHeaders(url, referer);
+                    }
                 } catch (Exception ex) {
                     if (i == WebRequestRetryCount - 1) {
                         throw new WebException("Error while attempting to get header for: " + url.ToString(), ex);
@@ -186,9 +188,11 @@ namespace BulkMediaDownloader.MediaSources
             {
                 try
                 {
-                    String data = TheWebClient.DownloadString(url, referer);
-                    Console.Out.WriteLine("Total characters in page data: " + data.Length);
-                    return data;
+                    using (SuperWebClient client = new SuperWebClient()) {
+                        String data = client.DownloadString(url, referer);
+                        Console.Out.WriteLine("Total characters in page data: " + data.Length);
+                        return data;
+                    }
                 }
                 catch (Exception ex)
                 {

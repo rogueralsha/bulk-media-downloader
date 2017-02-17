@@ -16,7 +16,7 @@ namespace BulkMediaDownloader {
         public SuperWebClient() {
         }
 
-        public void SetCookies(List<CefSharp.Cookie> new_cookies) {
+        public static void SetCookies(List<CefSharp.Cookie> new_cookies) {
             foreach (CefSharp.Cookie cookie in new_cookies) {
                 if (cookie.Name.StartsWith("_"))
                     continue;
@@ -133,6 +133,7 @@ namespace BulkMediaDownloader {
                 return res.Headers;
             }
         }
+
 
         public Uri GetRedirectURL(Uri address, Uri referrer = null) {
             HttpWebRequest req = (HttpWebRequest)this.GetWebRequest(address);

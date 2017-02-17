@@ -401,6 +401,8 @@ namespace BulkMediaDownloader.Download {
         }
 
         void client_DownloadCompleted(object sender, AsyncCompletedEventArgs e) {
+
+
             if (e.Error != null) {
                 if (Attempts < MaxAttempts) {
                     Thread.Sleep(5000);
@@ -535,8 +537,27 @@ namespace BulkMediaDownloader.Download {
                 filename = filename.Substring(0, 260 - this.DownloadDir.Length - ext.Length - 2) + ext;
             }
 
-            string output = Path.Combine(this.DownloadDir, filename);
+            if(string.IsNullOrWhiteSpace(filename)) {
+                throw new Exception("Blank file name");
+            }
+
+            string output = SanitizePath(Path.Combine(this.DownloadDir, filename));
             return output;
+        }
+
+        private static string SanitizePath(string name) {
+            string[] parts = name.Split(Path.DirectorySeparatorChar);
+            for(int i = 1; i < parts.Length; i++) {
+                string part = parts[i];
+                char[] invalidCharArray = System.IO.Path.GetInvalidFileNameChars();
+                string invalidChars = new string(invalidCharArray);
+                invalidChars = invalidChars.Replace(@"/", "").Replace(@"\", "");
+                invalidChars = System.Text.RegularExpressions.Regex.Escape(invalidChars);
+                string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
+                part = System.Text.RegularExpressions.Regex.Replace(part, invalidRegStr, "_");
+                parts[i] = part;
+            }
+            return parts[0] + Path.DirectorySeparatorChar + Path.Combine(parts.Skip(1).ToArray<string>());
         }
 
         private string FormatSize(long len) {
