@@ -220,6 +220,26 @@ namespace BulkMediaDownloader.Download {
                 }
             }
         }
+        public static String cleanUpFileName(String input)
+        {
+            StringBuilder path = new StringBuilder(input);
+            foreach (char c in System.IO.Path.GetInvalidPathChars())
+            {
+                path.Replace(c, '_');
+            }
+            path.Replace(':', '_');
+            path.Replace("\"", "");
+
+            string file = path.ToString();
+
+            if (path.Length > 255)
+            {
+                int length = 255 - Path.GetExtension(file).Length;
+                file = Path.GetFileNameWithoutExtension(file).Substring(0, length) + Path.GetExtension(file);
+            }
+            return file;
+        }
+
 
         public void AddMediaSourceResult(MediaSources.MediaSourceResult media, string download_dir) {
             ADownloadable down;
@@ -227,7 +247,7 @@ namespace BulkMediaDownloader.Download {
                 case MediaSources.MediaResultType.Download:
                     DirectoryInfo dinfo = new DirectoryInfo(download_dir);
                     if(!string.IsNullOrWhiteSpace(media.Subfolder)&&dinfo.Name.ToLower()!=media.Subfolder.ToLower()) {
-                        download_dir = Path.Combine(download_dir, media.Subfolder);
+                        download_dir = Path.Combine(download_dir, cleanUpFileName(media.Subfolder));
                     }
                     Downloadable downloadable = new Downloadable(media.URL, media.Referrer, download_dir);
                     downloadable.DataType = DownloadType.Binary;

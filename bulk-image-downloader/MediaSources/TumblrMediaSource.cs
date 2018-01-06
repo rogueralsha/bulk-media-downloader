@@ -15,7 +15,7 @@ namespace BulkMediaDownloader.MediaSources
 {
     public class TumblrMediaSource : AMediaSource
     {
-        private readonly static Regex root_name = new Regex(@"https?://(([^""/]+)\.com)/archive/");
+        private readonly static Regex root_name = new Regex(@"https?://(([^""/]+)\.[^""/]+)/archive");
         private readonly static Regex next_page_regex = new Regex(@"href=""(/archive/\?before_time=\d+)""");
 
         private readonly static Regex post_regex = new Regex(@"href=""(https?://[^""/]+\.com/post/[^""]+)""");

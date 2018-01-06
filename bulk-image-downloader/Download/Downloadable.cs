@@ -37,19 +37,13 @@ namespace BulkMediaDownloader.Download {
                 UriBuilder builder = new UriBuilder(this.URL);
                 builder.Query = "";
 
-                StringBuilder path = new StringBuilder(Uri.UnescapeDataString(builder.Uri.ToString()));
-                foreach (char c in System.IO.Path.GetInvalidPathChars()) {
-                    path.Replace(c, '_');
-                }
-                path.Replace(':', '_');
-                string file = Path.GetFileName(path.ToString());
-                if (file.Length > 255) {
-                    int length = 255 - Path.GetExtension(file).Length;
-                    file = Path.GetFileNameWithoutExtension(file).Substring(0, length) + Path.GetExtension(file);
-                }
+
+                string file = Uri.UnescapeDataString(Path.GetFileName(builder.Uri.ToString()));
+                DownloadManager.cleanUpFileName(file);
                 return file;
             }
         }
+
 
         [XmlIgnore]
         [NotMapped]
@@ -454,9 +448,9 @@ namespace BulkMediaDownloader.Download {
                         foreach (String arg in args) {
                             String argTrimmed = arg.Trim();
                             if (argTrimmed.StartsWith("filename="))
-                                filename = argTrimmed.Substring(9);
+                                filename = DownloadManager.cleanUpFileName(argTrimmed.Substring(9));
                             if (argTrimmed.StartsWith("filename*=UTF-8''"))
-                                utf8Filename = argTrimmed.Substring(17);
+                                utf8Filename = DownloadManager.cleanUpFileName(argTrimmed.Substring(17));
                         }
                         if (!String.IsNullOrWhiteSpace(utf8Filename)) {
                             this._OverrideFileName = utf8Filename;

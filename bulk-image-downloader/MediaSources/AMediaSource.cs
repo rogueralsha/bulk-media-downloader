@@ -271,8 +271,12 @@ namespace BulkMediaDownloader.MediaSources
                             continue;
                         href = imageNode.Attributes["href"].Value;
 
+
                         if (!String.IsNullOrWhiteSpace(href)) {
                             Uri href_url = GenerateFullUrl(base_url, href);
+                            if (href=="#"|| href_url.ToString().ToLower() == base_url.ToString().ToLower())
+                                continue;
+
 
                             // Check for media file extensions
                             if (isMediaFile(href_url.ToString())) {
@@ -332,8 +336,13 @@ namespace BulkMediaDownloader.MediaSources
             Uri testUri = new Uri(path);
             path = testUri.AbsolutePath;
 
+            if (uploaddir_regex.IsMatch(testUri.ToString()))
+            {
+                return true;
+            }
 
-            foreach (String extension in Properties.Settings.Default.MediaExtensions)
+
+                foreach (String extension in Properties.Settings.Default.MediaExtensions)
             {
                 if (path.ToLower().EndsWith("." + extension.ToLower()))
                 {
@@ -343,13 +352,15 @@ namespace BulkMediaDownloader.MediaSources
             return false;
         }
 
+        private static Regex uploaddir_regex = new Regex(@"(.+uploadir.com\/u\/.+)");
+
         protected List<MediaSourceResult> getHostedMedia(Uri url)
         {
             List<MediaSourceResult> output = new List<MediaSourceResult>();
 
             try {
-                AMediaSource source = MediaSourceManager.GetMediaSourceForUrl(url, true);
-                output.Add(new MediaSourceResult(url, null, url, source, MediaResultType.DownloadSource, INITIAL_STAGE));
+                    AMediaSource source = MediaSourceManager.GetMediaSourceForUrl(url, true);
+                    output.Add(new MediaSourceResult(url, null, url, source, MediaResultType.DownloadSource, INITIAL_STAGE));
             } catch (UrlNotRecognizedException ex) {
                 Debug.WriteLine("Unsupported url: " + url.ToString());
             }
